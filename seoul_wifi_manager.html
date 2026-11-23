@@ -1,0 +1,821 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="referrer" content="origin">
+    <title>서울시 공공와이파이 통합 관제 · 좌표 보정 · 반경 분석기</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Malgun Gothic', '맑은 고딕', sans-serif; }
+        body { display: flex; flex-direction: column; height: 100vh; background-color: #f1f5f9; overflow: hidden; }
+
+        /* 상단 1단: API 연동 및 기본 검색바 */
+        header {
+            background-color: #ffffff;
+            padding: 8px 16px;
+            border-bottom: 1px solid #cbd5e1;
+            z-index: 20;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .title-area h1 { font-size: 15px; color: #0f172a; font-weight: 800; }
+        .title-area p { font-size: 11px; color: #64748b; }
+
+        .top-controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            align-items: center;
+        }
+        .input-group {
+            display: flex;
+            align-items: center;
+            background: #f8fafc;
+            border: 1px solid #cbd5e1;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+        .input-group label {
+            padding: 0 7px;
+            font-size: 11px;
+            font-weight: bold;
+            color: #334155;
+            background: #e2e8f0;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            white-space: nowrap;
+        }
+        .input-group input, .input-group select {
+            border: none;
+            background: transparent;
+            padding: 0 8px;
+            height: 30px;
+            font-size: 12px;
+            outline: none;
+        }
+        .input-group button {
+            height: 30px;
+            padding: 0 10px;
+            border: none;
+            background-color: #2563eb;
+            color: white;
+            font-size: 11px;
+            font-weight: bold;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+        .input-group button:hover { background-color: #1d4ed8; }
+
+        /* 상단 2단: 카테고리 필터 및 지도/뷰 컨트롤바 */
+        .filter-bar {
+            background-color: #f8fafc;
+            padding: 7px 16px;
+            border-bottom: 1px solid #cbd5e1;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: center;
+            justify-content: space-between;
+            z-index: 15;
+        }
+        .filter-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            align-items: center;
+        }
+        .filter-select {
+            height: 30px;
+            padding: 0 8px;
+            border: 1px solid #cbd5e1;
+            border-radius: 5px;
+            font-size: 12px;
+            background: #ffffff;
+            color: #1e293b;
+            max-width: 170px;
+        }
+        .btn-action {
+            height: 30px;
+            padding: 0 10px;
+            border-radius: 5px;
+            font-size: 11px;
+            font-weight: bold;
+            cursor: pointer;
+            border: 1px solid #cbd5e1;
+            background: #ffffff;
+            color: #334155;
+            white-space: nowrap;
+        }
+        .btn-action:hover { background: #e2e8f0; }
+        .btn-action.active { background: #2563eb; color: #ffffff; border-color: #2563eb; }
+        .btn-green { background: #059669; color: #ffffff; border-color: #059669; }
+        .btn-green:hover { background: #047857; }
+        .btn-red { background: #dc2626; color: #ffffff; border-color: #dc2626; }
+        .btn-red:hover { background: #b91c1c; }
+        .btn-red:disabled { background: #94a3b8; border-color: #94a3b8; cursor: not-allowed; }
+
+        /* 진행률 배너 */
+        #loadingBar {
+            display: none;
+            background: #1e3a8a;
+            color: #ffffff;
+            padding: 6px 16px;
+            font-size: 12px;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .progress-track {
+            width: 240px;
+            height: 8px;
+            background: rgba(255,255,255,0.25);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%;
+            width: 0%;
+            background: #38bdf8;
+            transition: width 0.2s;
+        }
+
+        /* 메인 컨테이너 */
+        .main-container {
+            display: flex;
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+        }
+        .visual-area {
+            display: flex;
+            flex: 1;
+            height: 100%;
+            position: relative;
+        }
+        #map-wrapper, #rv-wrapper {
+            flex: 1;
+            height: 100%;
+            position: relative;
+        }
+        #rv-wrapper {
+            border-left: 2px solid #cbd5e1;
+            background-color: #1e293b;
+        }
+        #map, #roadview { width: 100%; height: 100%; }
+        #map img, #roadview img { max-width: none !important; max-height: none !important; border: 0; }
+
+        .visual-area.mode-map #rv-wrapper { display: none; }
+        .visual-area.mode-roadview #map-wrapper { display: none; }
+
+        /* 지도 좌측 상단 상태 오버레이 */
+        .map-status-overlay {
+            position: absolute;
+            top: 12px;
+            left: 12px;
+            z-index: 10;
+            background: rgba(255, 255, 255, 0.95);
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            padding: 8px 12px;
+            font-size: 12px;
+            color: #1e293b;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+            pointer-events: none;
+            line-height: 1.5;
+        }
+        .map-status-overlay strong { color: #2563eb; }
+
+        /* 자치구 집계 배지 스타일 */
+        .gu-cluster-badge {
+            background: rgba(30, 58, 138, 0.92);
+            color: #ffffff;
+            border: 2px solid #ffffff;
+            border-radius: 20px;
+            padding: 6px 12px;
+            font-size: 12px;
+            font-weight: bold;
+            box-shadow: 0 3px 8px rgba(0,0,0,0.3);
+            cursor: pointer;
+            white-space: nowrap;
+            text-align: center;
+            transition: transform 0.15s, background 0.15s;
+        }
+        .gu-cluster-badge:hover {
+            transform: scale(1.08);
+            background: #2563eb;
+        }
+        .gu-cluster-badge span {
+            color: #fde047;
+            margin-left: 4px;
+        }
+
+        /* 우측 사이드 패널 */
+        .side-panel {
+            width: 390px;
+            background: #ffffff;
+            border-left: 1px solid #cbd5e1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            box-shadow: -2px 0 8px rgba(0,0,0,0.05);
+        }
+        .panel-tabs {
+            display: flex;
+            background: #f8fafc;
+            border-bottom: 1px solid #cbd5e1;
+        }
+        .panel-tab {
+            flex: 1;
+            padding: 10px 4px;
+            border: none;
+            background: transparent;
+            font-size: 12px;
+            font-weight: bold;
+            color: #64748b;
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+        }
+        .panel-tab.active {
+            color: #2563eb;
+            background: #ffffff;
+            border-bottom-color: #2563eb;
+        }
+        .tab-content {
+            display: none;
+            flex-direction: column;
+            gap: 10px;
+            padding: 14px;
+            flex: 1;
+            overflow-y: auto;
+        }
+        .tab-content.active { display: flex; }
+
+        .info-item {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            padding: 8px 10px;
+        }
+        .info-item .label {
+            font-size: 11px;
+            color: #64748b;
+            font-weight: bold;
+            margin-bottom: 3px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .info-item .value {
+            font-size: 13px;
+            color: #0f172a;
+            word-break: break-all;
+            line-height: 1.4;
+        }
+        .copy-btn {
+            background: #e2e8f0;
+            border: none;
+            border-radius: 4px;
+            padding: 2px 6px;
+            font-size: 10px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        /* 반경 분석 박스 */
+        .radius-box {
+            background: #eff6ff;
+            border: 1px solid #bfdbfe;
+            border-radius: 6px;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .radius-row {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .radius-row input[type="number"] {
+            width: 75px;
+            height: 28px;
+            padding: 0 6px;
+            border: 1px solid #93c5fd;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        /* 리스트 카드 공통 */
+        .list-container {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            overflow-y: auto;
+            flex: 1;
+        }
+        .data-card {
+            background: #f8fafc;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            padding: 8px 10px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+        .data-card:hover { border-color: #2563eb; background: #eff6ff; }
+        .data-card.modified { border-left: 4px solid #dc2626; }
+        .card-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: bold;
+            color: #0f172a;
+            margin-bottom: 3px;
+        }
+        .card-sub { font-size: 11px; color: #475569; line-height: 1.35; }
+        .card-coord { font-size: 11px; color: #2563eb; font-family: monospace; margin-top: 2px; }
+
+        #rv-empty {
+            position: absolute;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.85);
+            color: #f8fafc;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 20px;
+            z-index: 5;
+        }
+
+        #toast {
+            visibility: hidden;
+            min-width: 240px;
+            background-color: #1e293b;
+            color: #fff;
+            text-align: center;
+            border-radius: 6px;
+            padding: 10px 16px;
+            position: fixed;
+            z-index: 100;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+        }
+        #toast.show { visibility: visible; animation: fadein 0.25s, fadeout 0.25s 2.2s; }
+        @keyframes fadein { from {bottom: 10px; opacity: 0;} to {bottom: 24px; opacity: 1;} }
+        @keyframes fadeout { from {bottom: 24px; opacity: 1;} to {bottom: 10px; opacity: 0;} }
+    </style>
+</head>
+<body>
+
+<!-- 상단 1단: 서울시 열린데이터 API 및 기본 검색 -->
+<header>
+    <div class="title-area">
+        <h1>📡 서울시 공공와이파이 2.6만 AP 관제 · 좌표 보정 · 반경 분석</h1>
+        <p>서울시 열린데이터 광장 실시간 API 연동 및 자치구 집계 / 상세 마커 드래그 수정 / 반경 내 AP 추출</p>
+    </div>
+
+    <div class="top-controls">
+        <!-- 서울시 열린데이터 광장 API 키 입력 -->
+        <div class="input-group" title="서울시 열린데이터 광장(data.seoul.go.kr) 인증키">
+            <label for="seoulApiKey">열린데이터 Key</label>
+            <input type="text" id="seoulApiKey" value="YOUR_SEOUL_OPEN_API_KEY" style="width:140px;" placeholder="인증키 입력">
+            <button type="button" id="btnFetchSeoulApi" style="background:#0f766e;">🔄 API 전체불러오기</button>
+        </div>
+
+        <!-- 열린데이터 CSV 백업 업로드 -->
+        <input type="file" id="wifiCsvInput" accept=".csv,.txt" style="display:none;">
+        <button type="button" id="btnUploadWifiCsv" class="btn-action" title="열린데이터 광장에서 다운로드한 원본 CSV 파일 불러오기">📂 원본 CSV 로드</button>
+
+        <!-- 주소/장소 검색 -->
+        <div class="input-group">
+            <label for="addressInput">주소/장소</label>
+            <input type="text" id="addressInput" style="width:145px;" placeholder="예: 서울시청, 강남역">
+            <button type="button" id="btnSearchAddr">검색</button>
+        </div>
+
+        <!-- 좌표 검색 -->
+        <div class="input-group">
+            <label for="coordInput">좌표</label>
+            <input type="text" id="coordInput" style="width:145px;" placeholder="37.5665, 126.9780">
+            <button type="button" id="btnSearchCoord">이동</button>
+        </div>
+    </div>
+</header>
+
+<!-- 상단 2단: 다중 카테고리 필터 + 지도/뷰 모드 + 수정본 저장 -->
+<div class="filter-bar">
+    <div class="filter-group">
+        <strong style="font-size:12px; color:#334155;">필터:</strong>
+        <select id="filterGu" class="filter-select" title="자치구 선택">
+            <option value="ALL">전체 자치구 (25개구)</option>
+        </select>
+        <select id="filterOrg" class="filter-select" title="관리주체(기관) 선택">
+            <option value="ALL">전체 관리주체</option>
+        </select>
+        <select id="filterType" class="filter-select" title="설치유형 선택">
+            <option value="ALL">전체 설치유형</option>
+        </select>
+        <input type="text" id="filterKeyword" class="filter-select" style="width:140px;" placeholder="AP명/관리번호 검색">
+        <button type="button" id="btnResetFilter" class="btn-action">초기화</button>
+    </div>
+
+    <div class="filter-group">
+        <button type="button" class="btn-action active" id="type-roadmap">🗺️ 일반</button>
+        <button type="button" class="btn-action" id="type-skyview">🛰️ 위성</button>
+        <button type="button" class="btn-action active" id="roadLayerBtn">🛣️ 로드뷰선</button>
+        <button type="button" class="btn-action active" id="btn-split">지도+로드뷰</button>
+        <button type="button" class="btn-action" id="btn-map">지도만</button>
+        <button type="button" id="btnDownloadModified" class="btn-action btn-red" disabled>
+            💾 수정 내역만 CSV 저장 (<span id="modCountTop">0</span>)
+        </button>
+    </div>
+</div>
+
+<!-- API 대용량 로딩 진행바 -->
+<div id="loadingBar">
+    <span id="loadingText">서울시 열린데이터 광장 데이터 수신 중...</span>
+    <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+</div>
+
+<!-- 메인 영역 -->
+<div class="main-container">
+    <div class="visual-area mode-split" id="visualArea">
+        <div id="map-wrapper">
+            <div id="map"></div>
+            <div class="map-status-overlay" id="mapStatusOverlay">
+                <div>적재 데이터: <strong id="statTotal">0</strong>건 / 필터 결과: <strong id="statFiltered">0</strong>건</div>
+                <div id="statViewMode">지도 줌 레벨: <strong>광역 집계 모드</strong> (확대 시 개별 마커 표시)</div>
+            </div>
+        </div>
+        <div id="rv-wrapper">
+            <div id="roadview"></div>
+            <div id="rv-empty">
+                <p>🚫 반경 50m 이내에 로드뷰 데이터가 없습니다</p>
+                <span style="font-size:12px; color:#94a3b8;">파란색 로드뷰 도로선 근처를 클릭해 보세요.</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- 우측 3단 탭 패널 -->
+    <aside class="side-panel">
+        <div class="panel-tabs">
+            <button type="button" class="panel-tab active" id="tabBtnInfo">📍 선택 AP/지점</button>
+            <button type="button" class="panel-tab" id="tabBtnMod">✏️ 수정 내역 (<span id="modCountTab">0</span>)</button>
+            <button type="button" class="panel-tab" id="tabBtnRadius">⭕ 반경 AP 분석</button>
+        </div>
+
+        <!-- 탭 1: 선택 지점 및 AP 상세 정보 -->
+        <div class="tab-content active" id="tabContentInfo">
+            <div class="info-item">
+                <div class="label"><span>AP명 / 관리번호</span><button type="button" class="copy-btn" data-target="infoApName">복사</button></div>
+                <div class="value" id="infoApName">-</div>
+            </div>
+            <div class="info-item">
+                <div class="label"><span>자치구 / 관리주체 / 설치유형</span></div>
+                <div class="value" id="infoApMeta">-</div>
+            </div>
+            <div class="info-item">
+                <div class="label"><span>도로명 주소</span><button type="button" class="copy-btn" data-target="roadAddr">복사</button></div>
+                <div class="value" id="roadAddr">-</div>
+            </div>
+            <div class="info-item">
+                <div class="label"><span>지번 주소</span><button type="button" class="copy-btn" data-target="jibunAddr">복사</button></div>
+                <div class="value" id="jibunAddr">-</div>
+            </div>
+            <div class="info-item">
+                <div class="label"><span>현재 위도, 경도</span><button type="button" class="copy-btn" data-target="latLngCombined">복사</button></div>
+                <div class="value" id="latLngCombined">-</div>
+            </div>
+            <div style="font-size:11px; color:#475569; background:#f8fafc; padding:8px; border-radius:5px; border:1px dashed #cbd5e1; line-height:1.5;">
+                💡 <b>사용 팁:</b> 지도를 <b>5레벨 이하로 확대</b>하면 개별 AP 마커(초록색)가 나타납니다. 마커를 <b>마우스로 드래그</b>해 정확한 위치로 옮기면 자동으로 수정 내역에 기록됩니다.
+            </div>
+        </div>
+
+        <!-- 탭 2: 드래그로 위치 수정된 내역만 별도 관리 -->
+        <div class="tab-content" id="tabContentMod">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-size:12px; font-weight:bold; color:#0f172a;">좌표 변경 완료 목록</span>
+                <button type="button" id="btnExportModTab" class="btn-action btn-red" disabled>💾 수정 내역만 CSV 저장</button>
+            </div>
+            <div class="list-container" id="modListContainer">
+                <div style="font-size:12px; color:#64748b; text-align:center; padding:30px 10px;">
+                    아직 드래그로 위치를 수정한 AP가 없습니다.<br>지도를 확대하여 마커를 이동해 보세요.
+                </div>
+            </div>
+        </div>
+
+        <!-- 탭 3: 특정 CSV 업로드 기준 임의 반경(100m, 150m 등) 내 AP 추출 -->
+        <div class="tab-content" id="tabContentRadius">
+            <div class="radius-box">
+                <div style="font-size:12px; font-weight:bold; color:#1e3a8a;">1. 기준 좌표 CSV 업로드 (장소명, 위도, 경도)</div>
+                <div class="radius-row">
+                    <input type="file" id="targetCsvInput" accept=".csv,.txt" style="display:none;">
+                    <button type="button" id="btnUploadTargetCsv" class="btn-action btn-green">📂 기준 CSV 선택</button>
+                    <span id="targetCsvStatus" style="font-size:11px; color:#334155;">선택된 파일 없음</span>
+                </div>
+
+                <div style="font-size:12px; font-weight:bold; color:#1e3a8a; margin-top:4px;">2. 검색 반경(m) 설정 및 실행</div>
+                <div class="radius-row">
+                    <input type="number" id="radiusMetersInput" value="100" min="10" max="5000" step="10">
+                    <span style="font-size:12px; font-weight:bold;">m</span>
+                    <button type="button" class="btn-action" onclick="setQuickRadius(100)">100m</button>
+                    <button type="button" class="btn-action" onclick="setQuickRadius(150)">150m</button>
+                    <button type="button" class="btn-action" onclick="setQuickRadius(300)">300m</button>
+                    <button type="button" id="btnRunRadiusAnalysis" class="btn-action active">🔍 분석 실행</button>
+                </div>
+
+                <div class="radius-row" style="justify-content:space-between; margin-top:4px;">
+                    <span id="radiusResultSummary" style="font-size:12px; font-weight:bold; color:#0f172a;">반경 내 AP: 0대</span>
+                    <button type="button" id="btnDownloadRadiusCsv" class="btn-action btn-green" disabled>📥 반경 결과 CSV</button>
+                </div>
+            </div>
+
+            <div class="list-container" id="radiusListContainer">
+                <div style="font-size:12px; color:#64748b; text-align:center; padding:24px 10px; line-height:1.6;">
+                    대상지 CSV(장소명, 위도, 경도)를 업로드하고 반경(m)을 입력하면,<br>
+                    해당 반경 안에 포함된 서울시 공공와이파이 AP 수량과 상세 목록이 표시됩니다.
+                </div>
+            </div>
+        </div>
+    </aside>
+</div>
+
+<div id="toast">알림 메시지</div>
+
+<!-- 반드시 YOUR_KAKAO_JAVASCRIPT_KEY를 실제 JavaScript 키로 교체하세요 -->
+<script type="text/javascript" src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=a8ab0c24096e177ce69d0862bbaa9f54&libraries=services&autoload=false"></script>
+
+<script>
+    // =========================================================================
+    // 1. 전역 상태 변수 및 서울시 25개 자치구 중심 좌표 테이블
+    // =========================================================================
+    var map = null, geocoder = null, ps = null, clickMarker = null, infowindow = null;
+    var roadview = null, roadviewClient = null, rvMarker = null;
+    var isRoadLayerOn = true;
+
+    // 전체 AP 데이터 배열 (26,000+ 건 수용)
+    // 구조: { idx, mgrNo, gu, name, addr1, addr2, floor, instlTy, instlMby, svcSe, year, lat, lng, origLat, origLng, modified, modRoadAddr, modJibunAddr }
+    var allWifiData = [];
+    var filteredWifiData = [];
+    var modifiedMap = {}; // key: mgrNo (또는 idx), value: 수정된 AP 객체
+
+    // 지도 오버레이 풀(Pool)
+    var guOverlays = [];       // 축소 시 자치구별 집계 배지 (CustomOverlay)
+    var activeMarkers = [];    // 확대 시 현재 화면 내 AP 마커들
+    var radiusCircles = [];    // 반경 분석 원 (Circle)
+    var targetMarkers = [];    // 반경 분석 기준점 마커
+    var uploadedTargetPoints = []; // 업로드된 기준 CSV 좌표 목록
+    var radiusMatchedResults = []; // 반경 내 매칭된 AP 결과 목록
+
+    var MAX_VISIBLE_MARKERS = 450; // 확대 시 동시 렌더링 최대 마커 수 (브라우저 쾌적성 유지)
+    var DETAIL_ZOOM_LEVEL = 5;     // 이 레벨 이하(1~5)로 확대하면 개별 마커 표시, 6 이상이면 자치구별 수량 배지 표시
+
+    var SEOUL_GU_CENTERS = {
+        "종로구": [37.573050, 126.979189], "중구": [37.563756, 126.997552], "용산구": [37.532600, 126.990000],
+        "성동구": [37.563341, 127.036510], "광진구": [37.538484, 127.082293], "동대문구": [37.574368, 127.040019],
+        "중랑구": [37.606560, 127.092652], "성북구": [37.589116, 127.018214], "강북구": [37.639610, 127.025657],
+        "도봉구": [37.668768, 127.047163], "노원구": [37.654192, 127.056793], "은평구": [37.602695, 126.929116],
+        "서대문구": [37.579115, 126.936778], "마포구": [37.566324, 126.901491], "양천구": [37.516872, 126.866398],
+        "강서구": [37.550978, 126.849538], "구로구": [37.495485, 126.887369], "금천구": [37.456872, 126.895369],
+        "영등포구": [37.526371, 126.896228], "동작구": [37.512402, 126.939252], "관악구": [37.478406, 126.951613],
+        "서초구": [37.483712, 127.032411], "강남구": [37.517236, 127.047325], "송파구": [37.514543, 127.105918],
+        "강동구": [37.530125, 127.123762]
+    };
+
+    function showToast(msg) {
+        var t = document.getElementById('toast');
+        t.innerText = msg;
+        t.className = 'show';
+        setTimeout(function() { t.className = t.className.replace('show', ''); }, 2400);
+    }
+
+    function setQuickRadius(m) {
+        document.getElementById('radiusMetersInput').value = m;
+        if (uploadedTargetPoints.length > 0) {
+            runRadiusAnalysis();
+        }
+    }
+
+    // =========================================================================
+    // 2. 서울시 열린데이터 광장 OpenAPI (TbPublicWifiInfo) 대용량 병렬 호출
+    // =========================================================================
+    async function fetchSeoulOpenApiAll() {
+        var apiKey = document.getElementById('seoulApiKey').value.trim();
+        if (!apiKey || apiKey === 'a8ab0c24096e177ce69d0862bbaa9f54') {
+            alert('서울시 열린데이터 광장 인증키(API Key)를 상단 입력창에 먼저 입력해 주세요.\n(인증키가 없다면 우측 [📂 원본 CSV 로드] 버튼으로 내려받은 CSV 파일을 직접 올릴 수도 있습니다.)');
+            return;
+        }
+
+        var loadingBar = document.getElementById('loadingBar');
+        var loadingText = document.getElementById('loadingText');
+        var progressFill = document.getElementById('progressFill');
+        loadingBar.style.display = 'flex';
+        progressFill.style.width = '5%';
+        loadingText.innerText = '서울시 열린데이터 광장 전체 건수 조회 중...';
+
+        try {
+            // 1단계: 1~5번 호출로 전체 데이터 건수(list_total_count) 확인
+            var firstUrl = 'http://openapi.seoul.go.kr:8088/' + encodeURIComponent(apiKey) + '/json/TbPublicWifiInfo/1/5/';
+            // GitHub Pages(HTTPS) 환경에서 Mixed Content 차단을 피하기 위해 HTTPS 프록시/엔드포인트 우선 시도
+            var httpsUrl = 'https://openapi.seoul.go.kr:8088/' + encodeURIComponent(apiKey) + '/json/TbPublicWifiInfo/1/5/';
+
+            var res = await fetch(httpsUrl).catch(function() { return fetch(firstUrl); });
+            if (!res || !res.ok) throw new Error('API 서버 응답 오류 (HTTPS 혼합 콘텐츠 차단 또는 네트워크 오류)');
+
+            var firstJson = await res.json();
+            if (!firstJson.TbPublicWifiInfo) {
+                var errMsg = (firstJson.RESULT && firstJson.RESULT.MESSAGE) ? firstJson.RESULT.MESSAGE : '응답 데이터 형식 오류';
+                throw new Error(errMsg);
+            }
+
+            var totalCount = firstJson.TbPublicWifiInfo.list_total_count;
+            var batchSize = 1000;
+            var totalPages = Math.ceil(totalCount / batchSize);
+            var rawRows = [];
+
+            // 2단계: 1,000건 단위로 5개씩 병렬 배치 요청 (약 2.6만 건 -> 27회 요청을 3~4초 내 완료)
+            var concurrency = 5;
+            for (var p = 0; p < totalPages; p += concurrency) {
+                var promises = [];
+                for (var j = 0; j < concurrency && (p + j) < totalPages; j++) {
+                    var pageIdx = p + j;
+                    var start = pageIdx * batchSize + 1;
+                    var end = Math.min((pageIdx + 1) * batchSize, totalCount);
+                    var pageUrl = 'https://openapi.seoul.go.kr:8088/' + encodeURIComponent(apiKey) + '/json/TbPublicWifiInfo/' + start + '/' + end + '/';
+                    promises.push(
+                        fetch(pageUrl)
+                            .then(function(r) { return r.json(); })
+                            .then(function(data) {
+                                return (data.TbPublicWifiInfo && data.TbPublicWifiInfo.row) ? data.TbPublicWifiInfo.row : [];
+                            })
+                    );
+                }
+
+                var batchResults = await Promise.all(promises);
+                batchResults.forEach(function(rows) {
+                    rawRows = rawRows.concat(rows);
+                });
+
+                var pct = Math.min(100, Math.round((rawRows.length / totalCount) * 100));
+                progressFill.style.width = pct + '%';
+                loadingText.innerText = '데이터 수신 중: ' + rawRows.length.toLocaleString() + ' / ' + totalCount.toLocaleString() + '건 (' + pct + '%)';
+            }
+
+            ingestWifiRecords(rawRows, 'api');
+            showToast('서울시 공공와이파이 총 ' + allWifiData.length.toLocaleString() + '건 로드 완료!');
+        } catch (err) {
+            alert('서울시 열린데이터 API 호출 중 오류가 발생했습니다:\n' + err.message + '\n\n※ GitHub Pages(HTTPS) 브라우저 보안 정책으로 HTTP API가 차단될 경우, 열린데이터 광장에서 내려받은 CSV 파일을 [📂 원본 CSV 로드]로 불러와 사용하세요.');
+        } finally {
+            setTimeout(function() { loadingBar.style.display = 'none'; }, 800);
+        }
+    }
+
+    // =========================================================================
+    // 3. 원본 공공와이파이 CSV 파일 로드 (API 대체 및 오프라인/HTTPS 환경 대응)
+    // =========================================================================
+    function parseCsvLine(line) {
+        var result = [], current = '', inQuotes = false;
+        for (var i = 0; i < line.length; i++) {
+            var ch = line[i];
+            if (ch === '"') {
+                if (inQuotes && line[i + 1] === '"') { current += '"'; i++; }
+                else { inQuotes = !inQuotes; }
+            } else if (ch === ',' && !inQuotes) {
+                result.push(current.trim());
+                current = '';
+            } else {
+                current += ch;
+            }
+        }
+        result.push(current.trim());
+        return result;
+    }
+
+    function handleWifiCsvFile(file) {
+        if (!file) return;
+        var loadingBar = document.getElementById('loadingBar');
+        loadingBar.style.display = 'flex';
+        document.getElementById('loadingText').innerText = 'CSV 파일 파싱 중...';
+        document.getElementById('progressFill').style.width = '50%';
+
+        var reader = new FileReader();
+        reader.onload = function(e) {
+            var buffer = e.target.result;
+            var text = new TextDecoder('utf-8').decode(buffer);
+            if (text.indexOf('\uFFFD') !== -1) {
+                text = new TextDecoder('euc-kr').decode(buffer);
+            }
+
+            var lines = text.split(/\r?\n/).filter(function(l) { return l.trim() !== ''; });
+            if (lines.length < 2) {
+                loadingBar.style.display = 'none';
+                alert('데이터가 없는 CSV 파일입니다.');
+                return;
+            }
+
+            var headers = parseCsvLine(lines[0]);
+            var idxMap = {
+                mgrNo: headers.findIndex(function(h) { return /관리번호|MGR_NO/i.test(h); }),
+                gu: headers.findIndex(function(h) { return /자치구|시군구|WRDOFC/i.test(h); }),
+                name: headers.findIndex(function(h) { return /와이파이명|AP명|장소명|MAIN_NM/i.test(h); }),
+                addr1: headers.findIndex(function(h) { return /도로명|소재지주소|ADRES1/i.test(h); }),
+                addr2: headers.findIndex(function(h) { return /상세주소|ADRES2/i.test(h); }),
+                instlTy: headers.findIndex(function(h) { return /설치유형|INSTL_TY/i.test(h); }),
+                instlMby: headers.findIndex(function(h) { return /설치기관|관리주체|INSTL_MBY/i.test(h); }),
+                svcSe: headers.findIndex(function(h) { return /서비스구분|SVC_SE/i.test(h); }),
+                year: headers.findIndex(function(h) { return /설치년도|구축년도|CNSTC_YEAR/i.test(h); }),
+                lat: headers.findIndex(function(h) { return /위도|LAT|Y좌표/i.test(h); }),
+                lng: headers.findIndex(function(h) { return /경도|LNT|LNG|LON|X좌표/i.test(h); })
+            };
+
+            var records = [];
+            for (var i = 1; i < lines.length; i++) {
+                var cols = parseCsvLine(lines[i]);
+                records.push({
+                    X_SWIFI_MGR_NO: idxMap.mgrNo !== -1 ? cols[idxMap.mgrNo] : ('ROW_' + i),
+                    X_SWIFI_WRDOFC: idxMap.gu !== -1 ? cols[idxMap.gu] : '',
+                    X_SWIFI_MAIN_NM: idxMap.name !== -1 ? cols[idxMap.name] : ('AP_' + i),
+                    X_SWIFI_ADRES1: idxMap.addr1 !== -1 ? cols[idxMap.addr1] : '',
+                    X_SWIFI_ADRES2: idxMap.addr2 !== -1 ? cols[idxMap.addr2] : '',
+                    X_SWIFI_INSTL_TY: idxMap.instlTy !== -1 ? cols[idxMap.instlTy] : '기타',
+                    X_SWIFI_INSTL_MBY: idxMap.instlMby !== -1 ? cols[idxMap.instlMby] : '기타',
+                    X_SWIFI_SVC_SE: idxMap.svcSe !== -1 ? cols[idxMap.svcSe] : '',
+                    X_SWIFI_CNSTC_YEAR: idxMap.year !== -1 ? cols[idxMap.year] : '',
+                    LAT: idxMap.lat !== -1 ? cols[idxMap.lat] : cols[1],
+                    LNT: idxMap.lng !== -1 ? cols[idxMap.lng] : cols[2]
+                });
+            }
+
+            ingestWifiRecords(records, 'csv');
+            document.getElementById('progressFill').style.width = '100%';
+            setTimeout(function() { loadingBar.style.display = 'none'; }, 400);
+            showToast('CSV에서 총 ' + allWifiData.length.toLocaleString() + '건 로드 완료!');
+        };
+        reader.readAsArrayBuffer(file);
+    }
+
+    // =========================================================================
+    // 4. 데이터 정규화 및 카테고리 필터 옵션 자동 생성
+    // =========================================================================
+    function ingestWifiRecords(rawRows) {
+        allWifiData = [];
+        modifiedMap = {};
+        updateModifiedCounters();
+
+        var guSet = new Set();
+        var orgSet = new Set();
+        var typeSet = new Set();
+
+        for (var i = 0; i < rawRows.length; i++) {
+            var r = rawRows[i];
+            // 서울시 API는 LAT/LNT 필드가 간혹 서로 바뀌어 들어오는 경우가 있어 한국 좌표 범위로 자동 보정
+            var v1 = parseFloat(r.LAT);
+            var v2 = parseFloat(r.LNT);
+            if (isNaN(v1) || isNaN(v2)) continue;
+
+            var lat = v1, lng = v2;
+            if (lat > 100 && lng < 50) {
+                lat = v2;
+                lng = v1;
+            }
+            if (lat < 33 || lat > 43 || lng < 124 || lng > 132) continue;
+
+            var gu = (r.X_SWIFI_WRDOFC || '').trim() || '기타';
+            var org = (r.X_SWIFI_INSTL_MBY || '').trim() || '미분류';
+            var ty = (r.X_SWIFI_INSTL_TY || '').trim() || '미분류';
+
+            guSet.add(gu);
+            orgSet.add(org);
+            typeSet.add(ty);
+
+            allWifiData.push({
+                idx: allWifiData.length,
+                mgrNo: (r.X_SWIFI_MGR_NO || ('AP_' + i)).trim(),
+                gu: gu,
+                name: (r.X_SWIFI_MAIN_NM || '').trim(),
+                addr1: (r.X_SWIFI_ADRES1 || '').trim(),
+                addr2: (r.X_SWIFI_ADRES2 || '').trim(),
+                instlTy: ty,
+                instlMby: org,
+                svcSe: (r.X_SWIFI_SVC_SE || '').trim(),
+                year: (r.X_SWIFI_CNSTC_YEAR || '').trim(),
+                lat: parseFloat(lat.toFixed(7)),
+                lng: parseFloat(lng.toFixed(7)),
+                origLat: parseFloat(lat.toFixed(7)),
+                origLng: parseFloat(lng.toFixed(7)),
+                modified: false,
+                modRoadAddr: '',
+                modJibunAddr: ''
+            });
+        }
+
+        populateSelectOptions('filterGu', Array.from(guSet
