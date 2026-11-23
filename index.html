@@ -375,22 +375,21 @@
 <div id="toast">클립보드에 복사되었습니다.</div>
 
 <!-- 반드시 YOUR_KAKAO_JAVASCRIPT_KEY를 실제 JavaScript 키로 변경하세요 -->
-<script type="text/javascript" src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=a8ab0c24096e177ce69d0862bbaa9f54&libraries=services&autoload=false"></script>
+<script type="text/javascript" src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=YOUR_KAKAO_JAVASCRIPT_KEY&libraries=services&autoload=false"></script>
 
 <script>
-(function() {
-    let map = null;
-    let geocoder = null;
-    let ps = null;
-    let marker = null;
-    let infowindow = null;
-    let roadview = null;
-    let roadviewClient = null;
-    let rvMarker = null;
-    let isRoadLayerOn = true;
+    var map = null;
+    var geocoder = null;
+    var ps = null;
+    var marker = null;
+    var infowindow = null;
+    var roadview = null;
+    var roadviewClient = null;
+    var rvMarker = null;
+    var isRoadLayerOn = true;
 
     function showToast(message) {
-        const toast = document.getElementById('toast');
+        var toast = document.getElementById('toast');
         if (!toast) return;
         toast.innerText = message;
         toast.className = 'show';
@@ -399,10 +398,20 @@
         }, 2000);
     }
 
+    function fallbackCopy(text) {
+        var textarea = document.createElement('textarea');
+        textarea.value = text;
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+        showToast('복사됨: ' + text);
+    }
+
     function copyText(elementId) {
-        const el = document.getElementById(elementId);
-        const text = el ? el.innerText : '';
-        if (!text || text === '-' || text.includes('없음')) {
+        var el = document.getElementById(elementId);
+        var text = el ? el.innerText : '';
+        if (!text || text === '-' || text.indexOf('없음') !== -1) {
             showToast('복사할 내용이 없습니다.');
             return;
         }
@@ -418,19 +427,9 @@
         }
     }
 
-    function fallbackCopy(text) {
-        const textarea = document.createElement('textarea');
-        textarea.value = text;
-        document.body.appendChild(textarea);
-        textarea.select();
-        document.execCommand('copy');
-        document.body.removeChild(textarea);
-        showToast('복사됨: ' + text);
-    }
-
     function setMapType(maptype) {
-        const roadmapBtn = document.getElementById('type-roadmap');
-        const skyviewBtn = document.getElementById('type-skyview');
+        var roadmapBtn = document.getElementById('type-roadmap');
+        var skyviewBtn = document.getElementById('type-skyview');
 
         if (maptype === 'roadmap') {
             roadmapBtn.classList.add('active');
@@ -444,7 +443,7 @@
     }
 
     function setViewMode(mode) {
-        const visualArea = document.getElementById('visualArea');
+        var visualArea = document.getElementById('visualArea');
         visualArea.className = 'visual-area mode-' + mode;
 
         document.getElementById('btn-split').classList.toggle('active', mode === 'split');
@@ -459,7 +458,7 @@
     }
 
     function toggleRoadviewLayer() {
-        const btn = document.getElementById('roadLayerBtn');
+        var btn = document.getElementById('roadLayerBtn');
         if (isRoadLayerOn) {
             if (map) map.removeOverlayMapTypeId(kakao.maps.MapTypeId.ROADVIEW);
             btn.classList.remove('active');
@@ -477,7 +476,7 @@
             alert('지도가 아직 초기화되지 않았습니다.');
             return;
         }
-        const query = document.getElementById('addressInput').value.trim();
+        var query = document.getElementById('addressInput').value.trim();
         if (!query) {
             alert('검색할 주소나 장소명을 입력하세요.');
             return;
@@ -485,13 +484,13 @@
 
         geocoder.addressSearch(query, function(result, status) {
             if (status === kakao.maps.services.Status.OK) {
-                const coords = new kakao.maps.LatLng(result[0].y, result[0].x);
+                var coords = new kakao.maps.LatLng(result[0].y, result[0].x);
                 map.setCenter(coords);
                 updateLocationByCoords(coords);
             } else {
                 ps.keywordSearch(query, function(data, status) {
                     if (status === kakao.maps.services.Status.OK) {
-                        const coords = new kakao.maps.LatLng(data[0].y, data[0].x);
+                        var coords = new kakao.maps.LatLng(data[0].y, data[0].x);
                         map.setCenter(coords);
                         updateLocationByCoords(coords, data[0].place_name);
                     } else {
@@ -507,36 +506,36 @@
             alert('지도가 아직 초기화되지 않았습니다.');
             return;
         }
-        const input = document.getElementById('coordInput').value.trim();
+        var input = document.getElementById('coordInput').value.trim();
         if (!input) {
             alert('좌표를 입력하세요. (예: 37.5665, 126.9780)');
             return;
         }
 
-        const parts = input.split(/[\s,]+/).filter(Boolean);
+        var parts = input.split(/[\s,]+/).filter(Boolean);
         if (parts.length !== 2 || isNaN(parts[0]) || isNaN(parts[1])) {
             alert('올바른 좌표 형식이 아닙니다.\n"위도, 경도" 형식으로 입력해주세요.');
             return;
         }
 
-        let lat = parseFloat(parts[0]);
-        let lng = parseFloat(parts[1]);
+        var lat = parseFloat(parts[0]);
+        var lng = parseFloat(parts[1]);
 
         if (lat > 100 && lng < 50) {
-            const temp = lat;
+            var temp = lat;
             lat = lng;
             lng = temp;
             showToast('경도·위도 순서가 자동 보정되었습니다.');
         }
 
-        const coords = new kakao.maps.LatLng(lat, lng);
+        var coords = new kakao.maps.LatLng(lat, lng);
         map.setCenter(coords);
         updateLocationByCoords(coords);
     }
 
     function updateLocationByCoords(latlng, placeName) {
-        const lat = latlng.getLat().toFixed(7);
-        const lng = latlng.getLng().toFixed(7);
+        var lat = latlng.getLat().toFixed(7);
+        var lng = latlng.getLng().toFixed(7);
 
         marker.setPosition(latlng);
 
@@ -545,8 +544,8 @@
         document.getElementById('latLngCombined').innerText = lat + ', ' + lng;
 
         geocoder.coord2Address(latlng.getLng(), latlng.getLat(), function(result, status) {
-            let roadAddr = '도로명 주소 없음';
-            let jibunAddr = '지번 주소 없음';
+            var roadAddr = '도로명 주소 없음';
+            var jibunAddr = '지번 주소 없음';
 
             if (status === kakao.maps.services.Status.OK) {
                 if (result[0].road_address) {
@@ -563,9 +562,9 @@
             document.getElementById('roadAddr').innerText = roadAddr;
             document.getElementById('jibunAddr').innerText = jibunAddr;
 
-            const titleHtml = placeName ? '<strong>' + placeName + '</strong><br>' : '';
-            const displayAddr = (roadAddr !== '도로명 주소 없음') ? roadAddr : jibunAddr;
-            const iwContent = '<div style="padding:8px 12px; font-size:12px; line-height:1.5; max-width:250px;">' +
+            var titleHtml = placeName ? '<strong>' + placeName + '</strong><br>' : '';
+            var displayAddr = (roadAddr !== '도로명 주소 없음') ? roadAddr : jibunAddr;
+            var iwContent = '<div style="padding:8px 12px; font-size:12px; line-height:1.5; max-width:250px;">' +
                 titleHtml +
                 '<span style="color:#1e293b;">' + displayAddr + '</span><br>' +
                 '<span style="color:#2563eb; font-weight:bold;">' + lat + ', ' + lng + '</span>' +
@@ -574,8 +573,8 @@
             infowindow.open(map, marker);
         });
 
-        const rvEmptyEl = document.getElementById('rv-empty');
-        const rvBadgeEl = document.getElementById('rvInfoBadge');
+        var rvEmptyEl = document.getElementById('rv-empty');
+        var rvBadgeEl = document.getElementById('rvInfoBadge');
 
         roadviewClient.getNearestPanoId(latlng, 50, function(panoId) {
             if (panoId === null) {
@@ -584,4 +583,130 @@
                 rvBadgeEl.innerText = '📸 로드뷰: 반경 50m 내 촬영 데이터 없음';
             } else {
                 rvEmptyEl.style.display = 'none';
-                rvMarker.setMap
+                rvMarker.setMap(map);
+                roadview.setPanoId(panoId, latlng);
+                rvBadgeEl.innerText = '📸 로드뷰: 정상 연동됨 (화면 드래그로 회전 가능)';
+            }
+        });
+    }
+
+    function bindEvents() {
+        document.getElementById('btnSearchAddr').addEventListener('click', searchByAddress);
+        document.getElementById('addressInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') searchByAddress();
+        });
+
+        document.getElementById('btnSearchCoord').addEventListener('click', searchByCoord);
+        document.getElementById('coordInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') searchByCoord();
+        });
+
+        document.getElementById('type-roadmap').addEventListener('click', function() { setMapType('roadmap'); });
+        document.getElementById('type-skyview').addEventListener('click', function() { setMapType('skyview'); });
+
+        document.getElementById('roadLayerBtn').addEventListener('click', toggleRoadviewLayer);
+
+        document.getElementById('btn-split').addEventListener('click', function() { setViewMode('split'); });
+        document.getElementById('btn-map').addEventListener('click', function() { setViewMode('map'); });
+        document.getElementById('btn-rv').addEventListener('click', function() { setViewMode('roadview'); });
+
+        document.querySelectorAll('.copy-btn').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                copyText(btn.getAttribute('data-target'));
+            });
+        });
+    }
+
+    window.addEventListener('DOMContentLoaded', function() {
+        bindEvents();
+
+        var mapContainer = document.getElementById('map');
+
+        if (typeof kakao === 'undefined' || !kakao.maps) {
+            document.getElementById('visualArea').innerHTML =
+                '<div class="error-box">' +
+                '<h3>⚠️ 카카오맵 SDK를 불러오지 못했습니다</h3>' +
+                '<ul>' +
+                '<li><strong>1. 현재 접속 도메인:</strong> <code>' + window.location.origin + '</code></li>' +
+                '<li><strong>2. Kakao Developers 설정:</strong> [내 애플리케이션] &gt; [플랫폼] &gt; [Web]에 <code>https://chobojeong.github.io</code>가 등록되어 있는지 확인하세요.</li>' +
+                '<li><strong>3. API 키 및 활성화:</strong> <strong>JavaScript 키</strong> 입력 및 [카카오맵] 활성화 <strong>ON</strong> 여부를 확인하세요.</li>' +
+                '</ul>' +
+                '</div>';
+            return;
+        }
+
+        kakao.maps.load(function() {
+            var defaultPos = new kakao.maps.LatLng(37.566826, 126.9786567);
+
+            map = new kakao.maps.Map(mapContainer, {
+                center: defaultPos,
+                level: 3
+            });
+
+            var zoomControl = new kakao.maps.ZoomControl();
+            map.addControl(zoomControl, kakao.maps.ControlPosition.RIGHT);
+
+            map.addOverlayMapTypeId(kakao.maps.MapTypeId.ROADVIEW);
+
+            geocoder = new kakao.maps.services.Geocoder();
+            ps = new kakao.maps.services.Places();
+
+            var mainMarkerSvg = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(
+                '<svg xmlns="http://www.w3.org/2000/svg" width="32" height="42" viewBox="0 0 32 42">' +
+                '<path fill="#2563eb" stroke="#ffffff" stroke-width="2" d="M16 1C8.3 1 2 7.3 2 15c0 10.5 14 25 14 25s14-14.5 14-25C30 7.3 23.7 1 16 1z"/>' +
+                '<circle fill="#ffffff" cx="16" cy="15" r="5.5"/>' +
+                '</svg>'
+            );
+            var mainMarkerImg = new kakao.maps.MarkerImage(
+                mainMarkerSvg,
+                new kakao.maps.Size(32, 42),
+                { offset: new kakao.maps.Point(16, 42) }
+            );
+
+            marker = new kakao.maps.Marker({
+                position: defaultPos,
+                image: mainMarkerImg,
+                map: map
+            });
+
+            infowindow = new kakao.maps.InfoWindow({ zIndex: 1 });
+
+            var rvContainer = document.getElementById('roadview');
+            roadview = new kakao.maps.Roadview(rvContainer);
+            roadviewClient = new kakao.maps.RoadviewClient();
+
+            var rvMarkerSvg = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(
+                '<svg xmlns="http://www.w3.org/2000/svg" width="28" height="36" viewBox="0 0 28 36">' +
+                '<path fill="#f59e0b" stroke="#ffffff" stroke-width="2" d="M14 1C7.4 1 2 6.4 2 13c0 9 12 21 12 21s12-12 12-21C26 6.4 20.6 1 14 1z"/>' +
+                '<circle fill="#ffffff" cx="14" cy="13" r="4.5"/>' +
+                '</svg>'
+            );
+            var rvIcon = new kakao.maps.MarkerImage(
+                rvMarkerSvg,
+                new kakao.maps.Size(28, 36),
+                { offset: new kakao.maps.Point(14, 36) }
+            );
+
+            rvMarker = new kakao.maps.Marker({
+                image: rvIcon,
+                position: defaultPos,
+                map: map
+            });
+
+            kakao.maps.event.addListener(roadview, 'position_changed', function() {
+                var rvPosition = roadview.getPosition();
+                rvMarker.setPosition(rvPosition);
+                map.setCenter(rvPosition);
+            });
+
+            updateLocationByCoords(defaultPos);
+
+            kakao.maps.event.addListener(map, 'click', function(mouseEvent) {
+                updateLocationByCoords(mouseEvent.latLng);
+            });
+        });
+    });
+</script>
+
+</body>
+</html>
