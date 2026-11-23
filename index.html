@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- GitHub Pages HTTPS 환경에서 카카오 API가 도메인(Referer)을 정상 인식하도록 설정 -->
+    <meta name="referrer" content="origin">
+    <title>카카오맵 주소 · 좌표 · 위성 · 로드뷰 검색기</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Malgun Gothic', '맑은 고딕', sans-serif; }
+        body { display: flex; flex-direction: column; height: 100vh; background-color: #f4f6f9; }
+        
+        /* 상단 헤더 */
+        header {
+            background-color: #ffffff;
+            padding: 12px 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            z-index: 10;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .title-area h1 { font-size: 17px; color: #1e293b; font-weight: 700; }
+        .title-area p { font-size: 12px; color: #64748b; margin-top: 2px; }
+
+        .search-controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: center;
+        }
+        .input-group {
+            display: flex;
+            align-items: center;
+            background: #f8fafc;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            overflow: hidden;
+        }
+        .input-group label {
+            padding: 0 10px;
+            font-size: 12px;
+            font-weight: bold;
+            color: #334155;
+            background: #e2e8f0;
+            height: 34px;
+            display: flex;
+            align-items: center;
+        }
+        .input-group input {
+            border: none;
+            background: transparent;
+            padding: 0 10px;
+            height: 34px;
+            font-size: 13px;
+            outline: none;
+            width: 190px;
+        }
+        .input-group button {
+            height: 34px;
+            padding: 0 12px;
+            border: none;
+            background-color: #2563eb;
+            color: white;
+            font-size: 12px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .input-group button:hover { background-color: #1d4ed8; }
+
+        /* 툴바 그룹 */
+        .toolbar-group {
+            display: flex;
+            gap: 4px;
+            background: #f1f5f9;
+            padding: 3px;
+            border-radius: 6px;
+            border: 1px solid #cbd5e1;
+        }
+        .tool-btn {
+            border: none;
+            background: transparent;
+            padding: 5px 10px;
+            font-size: 12px;
+            font-weight: bold;
+            color: #475569;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .tool-btn.active {
+            background: #ffffff;
+            color: #2563eb;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+        }
+        .road-layer-btn {
+            border: 1px solid #94a3b8;
+            background: #ffffff;
+            padding: 6px 10px;
+            font-size: 12px;
+            font-weight: bold;
+            color: #334155;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        .road-layer-btn.active {
+            background: #0284c7;
+            color: #ffffff;
+            border-color: #0284c7;
+        }
+
+        /* 메인 영역 */
+        .main-container {
+            display: flex;
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+        }
+        .visual-area {
+            display: flex;
+            flex: 1;
+            height: 100%;
+            position: relative;
+        }
+        #map-wrapper, #rv-wrapper {
+            flex: 1;
+            height: 100%;
+            position: relative;
+            transition: all 0.2s ease;
+        }
+        #rv-wrapper {
+            border-left: 2px solid #cbd5e1;
+            background-color: #1e293b;
+        }
+        #map, #roadview {
+            width: 100%;
+            height: 100%;
+        }
+
+        /* 카카오맵 내부 이미지 깨짐(Bootstrap/Reset CSS 충돌) 방지 */
+        #map img, #roadview img {
+            max-width: none !important;
+            max-height: none !important;
+            border: 0;
+        }
+
+        .visual-area.mode-map #rv-wrapper { display: none; }
+        .visual-area.mode-roadview #map-wrapper { display: none; }
+        .visual-area.mode-roadview #rv-wrapper { border-left: none; }
+
+        #rv-empty {
+            position: absolute;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.85);
+            color: #f8fafc;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 20px;
+            z-index: 5;
+        }
+        #rv-empty p { font-size: 14px; margin-bottom: 6px; font-weight: bold; }
+        #rv-empty span { font-size: 12px; color: #94a3b8; }
+
+        /* 에러 안내 박스 */
+        .error-box {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: #ffffff;
+            border: 1px solid #fca5a5;
+            border-left: 5px solid #ef4444;
+            border-radius: 8px;
+            padding: 24px;
+            width: 90%;
+            max-width: 520px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+            line-height: 1.6;
+            color: #1e293b;
+            z-index: 20;
+        }
+        .error-box h3 { color: #dc2626; margin-bottom: 10px; font-size: 16px; }
+        .error-box ul { margin-left: 20px; font-size: 13px; color: #475569; }
+        .error-box li { margin-bottom: 6px; }
+        .error-box code { background: #f1f5f9; padding: 2px 5px; border-radius: 4px; color: #0f172a; }
+
+        /* 우측 결과 정보 패널 */
+        .info-panel {
+            width: 310px;
+            background: #ffffff;
+            border-left: 1px solid #e2e8f0;
+            padding: 18px;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            overflow-y: auto;
+            box-shadow: -2px 0 8px rgba(0,0,0,0.05);
+        }
+        .info-panel h2 {
+            font-size: 15px;
+            color: #0f172a;
+            border-bottom: 2px solid #2563eb;
+            padding-bottom: 8px;
+        }
+        .info-item {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            padding: 10px 12px;
+        }
+        .info-item .label {
+            font-size: 12px;
+            color: #64748b;
+            font-weight: bold;
+            margin-bottom: 5px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .info-item .value {
+            font-size: 13px;
+            color: #1e293b;
+            word-break: break-all;
+            line-height: 1.4;
+            min-height: 18px;
+        }
+        .copy-btn {
+            background: #e2e8f0;
+            border: none;
+            border-radius: 4px;
+            padding: 3px 8px;
+            font-size: 11px;
+            color: #334155;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .copy-btn:hover { background: #cbd5e1; }
+
+        .rv-status-badge {
+            font-size: 12px;
+            padding: 8px 10px;
+            border-radius: 6px;
+            background: #eff6ff;
+            border: 1px solid #bfdbfe;
+            color: #1e40af;
+            line-height: 1.4;
+        }
+
+        /* 토스트 알림 */
+        #toast {
+            visibility: hidden;
+            min-width: 220px;
+            background-color: #1e293b;
+            color: #fff;
+            text-align: center;
+            border-radius: 6px;
+            padding: 10px 16px;
+            position: fixed;
+            z-index: 100;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 13px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+        #toast.show { visibility: visible; animation: fadein 0.3s, fadeout 0.3s 1.7s; }
+        @keyframes fadein { from {bottom: 10px; opacity: 0;} to {bottom: 30px; opacity: 1;} }
+        @keyframes fadeout { from {bottom: 30px; opacity: 1;} to {bottom: 10px; opacity: 0;} }
+
+        /* 모바일/좁은 화면 대응 */
+        @media (max-width: 900px) {
+            .main-container { flex-direction: column; }
+            .info-panel { width: 100%; height: 240px; border-left: none; border-top: 1px solid #e2e8f0; }
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <div class="title-area">
+        <h1>📍 카카오맵 주소 · 좌표 · 위성 · 로드뷰</h1>
+        <p>chobojeong.github.io 전용 양방향 위치 조회 도구</p>
+    </div>
+
+    <div class="search-controls">
+        <div class="input-group">
+            <label for="addressInput">주소/장소</label>
+            <input type="text" id="addressInput" placeholder="예: 서울시청 또는 세종대로 110" onkeypress="if(event.key==='Enter') searchByAddress()">
+            <button onclick="searchByAddress()">검색</button>
+        </div>
+
+        <div class="input-group">
+            <label for="coordInput">좌표</label>
+            <input type="text" id="coordInput" placeholder="예: 37.5665, 126.9780" onkeypress="if(event.key==='Enter') searchByCoord()">
+            <button onclick="searchByCoord()">이동</button>
+        </div>
+
+        <div class="toolbar-group" title="지도 배경 스타일 전환">
+            <button class="tool-btn active" id="type-roadmap" onclick="setMapType('roadmap')">🗺️ 일반지도</button>
+            <button class="tool-btn" id="type-skyview" onclick="setMapType('skyview')">🛰️ 위성지도</button>
+        </div>
+
+        <button id="roadLayerBtn" class="road-layer-btn active" onclick="toggleRoadviewLayer()" title="지도에 로드뷰 촬영 도로 표시">
+            🛣️ 로드뷰선 ON
+        </button>
+
+        <div class="toolbar-group" title="화면 분할 모드 선택">
+            <button class="tool-btn active" id="btn-split" onclick="setViewMode('split')">지도+로드뷰</button>
+            <button class="tool-btn" id="btn-map" onclick="setViewMode('map')">지도만</button>
+            <button class="tool-btn" id="btn-rv" onclick="setViewMode('roadview')">로드뷰만</button>
+        </div>
+    </div>
+</header>
+
+<div class="main-container">
+    <div class="visual-area mode-split" id="visualArea">
+        <div id="map-wrapper">
+            <div id="map"></div>
+        </div>
+        <div id="rv-wrapper">
+            <div id="roadview"></div>
+            <div id="rv-empty">
+                <p>🚫 반경 50m 이내에 로드뷰 데이터가 없습니다</p>
+                <span>파란색 로드뷰 도로선 근처를 클릭해 보세요.</span>
+            </div>
+        </div>
+    </div>
+    
+    <aside class="info-panel">
+        <h2>선택 위치 상세 정보</h2>
+        
+        <div class="info-item">
+            <div class="label">
+                <span>도로명 주소</span>
+                <button class="copy-btn" onclick="copyText('roadAddr')">복사</button>
+            </div>
+            <div class="value" id="roadAddr">-</div>
+        </div>
+
+        <div class="info-item">
+            <div class="label">
+                <span>지번 주소</span>
+                <button class="copy-btn" onclick="copyText('jibunAddr')">복사</button>
+            </div>
+            <div class="value" id="jibunAddr">-</div>
+        </div>
+
+        <div class="info-item">
+            <div class="label">
+                <span>위도 (Latitude / Y)</span>
+                <button class="copy-btn" onclick="copyText('latVal')">복사</button>
+            </div>
+            <div class="value" id="latVal">-</div>
+        </div>
+
+        <div class="info-item">
+            <div class="label">
+                <span>경도 (Longitude / X)</span>
+                <button class="copy-btn" onclick="copyText('lngVal')">복사</button>
+            </div>
+            <div class="value" id="lngVal">-</div>
+        </div>
+
+        <div class="info-item">
+            <div class="label">
+                <span>위도, 경도 (통합)</span>
+                <button class="copy-btn" onclick="copyText('latLngCombined')">복사</button>
+            </div>
+            <div class="value" id="latLngCombined">-</div>
+        </div>
+
+        <div class="rv-status-badge" id="rvInfoBadge">
+            📸 로드뷰 상태: 확인 중...
+        </div>
+    </aside>
+</div>
+
+<div id="toast">클립보드에 복사되었습니다.</div>
+
+<!-- HTTPS 프로토콜 명시 + services 라이브러리 포함 -->
+<script type="text/javascript" src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=YOUR_KAKAO_JAVASCRIPT_KEY&libraries=services&autoload=false"></script>
+
+<script>
+    let map, geocoder, ps, marker, infowindow;
+    let roadview, roadviewClient, rvMarker;
+    let isRoadLayerOn = true;
+
+    window.addEventListener('DOMContentLoaded', function() {
+        const mapContainer = document.getElementById('map');
+
+        if (typeof kakao === 'undefined' || !kakao.maps) {
+            document.getElementById('visualArea').innerHTML = `
+                <div class="error-box">
+                    <h3>⚠️ 카카오맵 SDK를 불러오지 못했습니다</h3>
+                    <ul>
+                        <li><strong>1. 현재 접속 도메인:</strong> <code>${window.location.origin}</code></li>
+                        <li><strong>2. Kakao Developers 설정:</strong> [내 애플리케이션] &gt; [플랫폼] &gt; [Web]에 <code>https://chobojeong.github.io</code>가 정확히 등록되어 있는지 확인하세요.</li>
+                        <li><strong>3. API 키 및 활성화:</strong> <strong>JavaScript 키</strong>를 입력했는지, [카카오맵] 메뉴에서 활성화 상태가 <strong>ON</strong>인지 확인하세요.</li>
+                    </ul>
+                </div>`;
+            return;
+        }
+
+        kakao.maps.load(function() {
+            const defaultPos = new kakao.maps.LatLng(37.566826, 126.9786567);
+
+            // 1. 지도 초기화
+            map = new kakao.maps.Map(mapContainer, {
+                center: defaultPos,
+                level: 3
+            });
+
+            const zoomControl = new kakao.maps.ZoomControl();
+            map.addControl(zoomControl, kakao.maps.ControlPosition.RIGHT);
+
+            map.addOverlayMapTypeId(kakao.maps.MapTypeId.ROADVIEW);
+
+            geocoder = new kakao.maps.services.Geocoder();
+            ps = new kakao.maps.services.Places();
+
+            // 클릭 지점 마커 (HTTPS SVG 데이터 URI 커스텀 마커 적용 - 외부 이미지 깨짐 원천 차단)
+            const mainMarkerSvg = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(`
+                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="42" viewBox="0 0 32 42">
+                    <path fill="#2563eb" stroke="#ffffff" stroke-width="2" d="M16 1C8.3 1 2 7.3 2 15c0 10.5 14 25 14 25s14-14.5 14-25C30 7.3 23.7 1 16 1z"/>
+                    <circle fill="#ffffff" cx="16" cy="15" r="5.5"/>
+                </svg>
+            `);
+            const mainMarkerImg = new kakao.maps.MarkerImage(
+                mainMarkerSvg,
+                new kakao.maps.Size(32, 42),
+                { offset: new kakao.maps.Point(16, 42) }
+            );
+
+            marker = new kakao.maps.Marker({
+                position: defaultPos,
+                image: mainMarkerImg,
+                map: map
+            });
+
+            infowindow = new kakao
