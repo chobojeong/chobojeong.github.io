@@ -3,14 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <!-- GitHub Pages HTTPS 환경에서 카카오 API가 도메인(Referer)을 정상 인식하도록 설정 -->
     <meta name="referrer" content="origin">
     <title>카카오맵 주소 · 좌표 · 위성 · 로드뷰 검색기</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Malgun Gothic', '맑은 고딕', sans-serif; }
         body { display: flex; flex-direction: column; height: 100vh; background-color: #f4f6f9; }
         
-        /* 상단 헤더 */
         header {
             background-color: #ffffff;
             padding: 12px 20px;
@@ -71,7 +69,6 @@
         }
         .input-group button:hover { background-color: #1d4ed8; }
 
-        /* 툴바 그룹 */
         .toolbar-group {
             display: flex;
             gap: 4px;
@@ -112,7 +109,6 @@
             border-color: #0284c7;
         }
 
-        /* 메인 영역 */
         .main-container {
             display: flex;
             flex: 1;
@@ -140,7 +136,6 @@
             height: 100%;
         }
 
-        /* 카카오맵 내부 이미지 깨짐(Bootstrap/Reset CSS 충돌) 방지 */
         #map img, #roadview img {
             max-width: none !important;
             max-height: none !important;
@@ -167,7 +162,6 @@
         #rv-empty p { font-size: 14px; margin-bottom: 6px; font-weight: bold; }
         #rv-empty span { font-size: 12px; color: #94a3b8; }
 
-        /* 에러 안내 박스 */
         .error-box {
             position: absolute;
             top: 50%;
@@ -190,7 +184,6 @@
         .error-box li { margin-bottom: 6px; }
         .error-box code { background: #f1f5f9; padding: 2px 5px; border-radius: 4px; color: #0f172a; }
 
-        /* 우측 결과 정보 패널 */
         .info-panel {
             width: 310px;
             background: #ffffff;
@@ -252,7 +245,6 @@
             line-height: 1.4;
         }
 
-        /* 토스트 알림 */
         #toast {
             visibility: hidden;
             min-width: 220px;
@@ -273,7 +265,6 @@
         @keyframes fadein { from {bottom: 10px; opacity: 0;} to {bottom: 30px; opacity: 1;} }
         @keyframes fadeout { from {bottom: 30px; opacity: 1;} to {bottom: 10px; opacity: 0;} }
 
-        /* 모바일/좁은 화면 대응 */
         @media (max-width: 900px) {
             .main-container { flex-direction: column; }
             .info-panel { width: 100%; height: 240px; border-left: none; border-top: 1px solid #e2e8f0; }
@@ -291,29 +282,29 @@
     <div class="search-controls">
         <div class="input-group">
             <label for="addressInput">주소/장소</label>
-            <input type="text" id="addressInput" placeholder="예: 서울시청 또는 세종대로 110" onkeypress="if(event.key==='Enter') searchByAddress()">
-            <button onclick="searchByAddress()">검색</button>
+            <input type="text" id="addressInput" placeholder="예: 서울시청 또는 세종대로 110">
+            <button type="button" id="btnSearchAddr">검색</button>
         </div>
 
         <div class="input-group">
             <label for="coordInput">좌표</label>
-            <input type="text" id="coordInput" placeholder="예: 37.5665, 126.9780" onkeypress="if(event.key==='Enter') searchByCoord()">
-            <button onclick="searchByCoord()">이동</button>
+            <input type="text" id="coordInput" placeholder="예: 37.5665, 126.9780">
+            <button type="button" id="btnSearchCoord">이동</button>
         </div>
 
         <div class="toolbar-group" title="지도 배경 스타일 전환">
-            <button class="tool-btn active" id="type-roadmap" onclick="setMapType('roadmap')">🗺️ 일반지도</button>
-            <button class="tool-btn" id="type-skyview" onclick="setMapType('skyview')">🛰️ 위성지도</button>
+            <button type="button" class="tool-btn active" id="type-roadmap">🗺️ 일반지도</button>
+            <button type="button" class="tool-btn" id="type-skyview">🛰️ 위성지도</button>
         </div>
 
-        <button id="roadLayerBtn" class="road-layer-btn active" onclick="toggleRoadviewLayer()" title="지도에 로드뷰 촬영 도로 표시">
+        <button type="button" id="roadLayerBtn" class="road-layer-btn active" title="지도에 로드뷰 촬영 도로 표시">
             🛣️ 로드뷰선 ON
         </button>
 
         <div class="toolbar-group" title="화면 분할 모드 선택">
-            <button class="tool-btn active" id="btn-split" onclick="setViewMode('split')">지도+로드뷰</button>
-            <button class="tool-btn" id="btn-map" onclick="setViewMode('map')">지도만</button>
-            <button class="tool-btn" id="btn-rv" onclick="setViewMode('roadview')">로드뷰만</button>
+            <button type="button" class="tool-btn active" id="btn-split">지도+로드뷰</button>
+            <button type="button" class="tool-btn" id="btn-map">지도만</button>
+            <button type="button" class="tool-btn" id="btn-rv">로드뷰만</button>
         </div>
     </div>
 </header>
@@ -338,7 +329,7 @@
         <div class="info-item">
             <div class="label">
                 <span>도로명 주소</span>
-                <button class="copy-btn" onclick="copyText('roadAddr')">복사</button>
+                <button type="button" class="copy-btn" data-target="roadAddr">복사</button>
             </div>
             <div class="value" id="roadAddr">-</div>
         </div>
@@ -346,7 +337,7 @@
         <div class="info-item">
             <div class="label">
                 <span>지번 주소</span>
-                <button class="copy-btn" onclick="copyText('jibunAddr')">복사</button>
+                <button type="button" class="copy-btn" data-target="jibunAddr">복사</button>
             </div>
             <div class="value" id="jibunAddr">-</div>
         </div>
@@ -354,7 +345,7 @@
         <div class="info-item">
             <div class="label">
                 <span>위도 (Latitude / Y)</span>
-                <button class="copy-btn" onclick="copyText('latVal')">복사</button>
+                <button type="button" class="copy-btn" data-target="latVal">복사</button>
             </div>
             <div class="value" id="latVal">-</div>
         </div>
@@ -362,7 +353,7 @@
         <div class="info-item">
             <div class="label">
                 <span>경도 (Longitude / X)</span>
-                <button class="copy-btn" onclick="copyText('lngVal')">복사</button>
+                <button type="button" class="copy-btn" data-target="lngVal">복사</button>
             </div>
             <div class="value" id="lngVal">-</div>
         </div>
@@ -370,7 +361,7 @@
         <div class="info-item">
             <div class="label">
                 <span>위도, 경도 (통합)</span>
-                <button class="copy-btn" onclick="copyText('latLngCombined')">복사</button>
+                <button type="button" class="copy-btn" data-target="latLngCombined">복사</button>
             </div>
             <div class="value" id="latLngCombined">-</div>
         </div>
@@ -383,64 +374,214 @@
 
 <div id="toast">클립보드에 복사되었습니다.</div>
 
-<!-- HTTPS 프로토콜 명시 + services 라이브러리 포함 -->
+<!-- 반드시 YOUR_KAKAO_JAVASCRIPT_KEY를 실제 JavaScript 키로 변경하세요 -->
 <script type="text/javascript" src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=a8ab0c24096e177ce69d0862bbaa9f54&libraries=services&autoload=false"></script>
 
 <script>
-    let map, geocoder, ps, marker, infowindow;
-    let roadview, roadviewClient, rvMarker;
+(function() {
+    let map = null;
+    let geocoder = null;
+    let ps = null;
+    let marker = null;
+    let infowindow = null;
+    let roadview = null;
+    let roadviewClient = null;
+    let rvMarker = null;
     let isRoadLayerOn = true;
 
-    window.addEventListener('DOMContentLoaded', function() {
-        const mapContainer = document.getElementById('map');
+    function showToast(message) {
+        const toast = document.getElementById('toast');
+        if (!toast) return;
+        toast.innerText = message;
+        toast.className = 'show';
+        setTimeout(function() {
+            toast.className = toast.className.replace('show', '');
+        }, 2000);
+    }
 
-        if (typeof kakao === 'undefined' || !kakao.maps) {
-            document.getElementById('visualArea').innerHTML = `
-                <div class="error-box">
-                    <h3>⚠️ 카카오맵 SDK를 불러오지 못했습니다</h3>
-                    <ul>
-                        <li><strong>1. 현재 접속 도메인:</strong> <code>${window.location.origin}</code></li>
-                        <li><strong>2. Kakao Developers 설정:</strong> [내 애플리케이션] &gt; [플랫폼] &gt; [Web]에 <code>https://chobojeong.github.io</code>가 정확히 등록되어 있는지 확인하세요.</li>
-                        <li><strong>3. API 키 및 활성화:</strong> <strong>JavaScript 키</strong>를 입력했는지, [카카오맵] 메뉴에서 활성화 상태가 <strong>ON</strong>인지 확인하세요.</li>
-                    </ul>
-                </div>`;
+    function copyText(elementId) {
+        const el = document.getElementById(elementId);
+        const text = el ? el.innerText : '';
+        if (!text || text === '-' || text.includes('없음')) {
+            showToast('복사할 내용이 없습니다.');
             return;
         }
 
-        kakao.maps.load(function() {
-            const defaultPos = new kakao.maps.LatLng(37.566826, 126.9786567);
-
-            // 1. 지도 초기화
-            map = new kakao.maps.Map(mapContainer, {
-                center: defaultPos,
-                level: 3
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).then(function() {
+                showToast('복사됨: ' + text);
+            }).catch(function() {
+                fallbackCopy(text);
             });
+        } else {
+            fallbackCopy(text);
+        }
+    }
 
-            const zoomControl = new kakao.maps.ZoomControl();
-            map.addControl(zoomControl, kakao.maps.ControlPosition.RIGHT);
+    function fallbackCopy(text) {
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+        showToast('복사됨: ' + text);
+    }
 
-            map.addOverlayMapTypeId(kakao.maps.MapTypeId.ROADVIEW);
+    function setMapType(maptype) {
+        const roadmapBtn = document.getElementById('type-roadmap');
+        const skyviewBtn = document.getElementById('type-skyview');
 
-            geocoder = new kakao.maps.services.Geocoder();
-            ps = new kakao.maps.services.Places();
+        if (maptype === 'roadmap') {
+            roadmapBtn.classList.add('active');
+            skyviewBtn.classList.remove('active');
+            if (map) map.setMapTypeId(kakao.maps.MapTypeId.ROADMAP);
+        } else {
+            skyviewBtn.classList.add('active');
+            roadmapBtn.classList.remove('active');
+            if (map) map.setMapTypeId(kakao.maps.MapTypeId.HYBRID);
+        }
+    }
 
-            // 클릭 지점 마커 (HTTPS SVG 데이터 URI 커스텀 마커 적용 - 외부 이미지 깨짐 원천 차단)
-            const mainMarkerSvg = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(`
-                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="42" viewBox="0 0 32 42">
-                    <path fill="#2563eb" stroke="#ffffff" stroke-width="2" d="M16 1C8.3 1 2 7.3 2 15c0 10.5 14 25 14 25s14-14.5 14-25C30 7.3 23.7 1 16 1z"/>
-                    <circle fill="#ffffff" cx="16" cy="15" r="5.5"/>
-                </svg>
-            `);
-            const mainMarkerImg = new kakao.maps.MarkerImage(
-                mainMarkerSvg,
-                new kakao.maps.Size(32, 42),
-                { offset: new kakao.maps.Point(16, 42) }
-            );
+    function setViewMode(mode) {
+        const visualArea = document.getElementById('visualArea');
+        visualArea.className = 'visual-area mode-' + mode;
 
-            marker = new kakao.maps.Marker({
-                position: defaultPos,
-                image: mainMarkerImg,
-                map: map
-            });
+        document.getElementById('btn-split').classList.toggle('active', mode === 'split');
+        document.getElementById('btn-map').classList.toggle('active', mode === 'map');
+        document.getElementById('btn-rv').classList.toggle('active', mode === 'roadview');
 
-            infowindow = new kakao
+        setTimeout(function() {
+            if (map) map.relayout();
+            if (roadview) roadview.relayout();
+            if (marker && map) map.setCenter(marker.getPosition());
+        }, 220);
+    }
+
+    function toggleRoadviewLayer() {
+        const btn = document.getElementById('roadLayerBtn');
+        if (isRoadLayerOn) {
+            if (map) map.removeOverlayMapTypeId(kakao.maps.MapTypeId.ROADVIEW);
+            btn.classList.remove('active');
+            btn.innerText = '🛣️ 로드뷰선 OFF';
+        } else {
+            if (map) map.addOverlayMapTypeId(kakao.maps.MapTypeId.ROADVIEW);
+            btn.classList.add('active');
+            btn.innerText = '🛣️ 로드뷰선 ON';
+        }
+        isRoadLayerOn = !isRoadLayerOn;
+    }
+
+    function searchByAddress() {
+        if (!geocoder) {
+            alert('지도가 아직 초기화되지 않았습니다.');
+            return;
+        }
+        const query = document.getElementById('addressInput').value.trim();
+        if (!query) {
+            alert('검색할 주소나 장소명을 입력하세요.');
+            return;
+        }
+
+        geocoder.addressSearch(query, function(result, status) {
+            if (status === kakao.maps.services.Status.OK) {
+                const coords = new kakao.maps.LatLng(result[0].y, result[0].x);
+                map.setCenter(coords);
+                updateLocationByCoords(coords);
+            } else {
+                ps.keywordSearch(query, function(data, status) {
+                    if (status === kakao.maps.services.Status.OK) {
+                        const coords = new kakao.maps.LatLng(data[0].y, data[0].x);
+                        map.setCenter(coords);
+                        updateLocationByCoords(coords, data[0].place_name);
+                    } else {
+                        alert('검색 결과가 없습니다. 정확한 주소나 장소명을 입력해주세요.');
+                    }
+                });
+            }
+        });
+    }
+
+    function searchByCoord() {
+        if (!geocoder) {
+            alert('지도가 아직 초기화되지 않았습니다.');
+            return;
+        }
+        const input = document.getElementById('coordInput').value.trim();
+        if (!input) {
+            alert('좌표를 입력하세요. (예: 37.5665, 126.9780)');
+            return;
+        }
+
+        const parts = input.split(/[\s,]+/).filter(Boolean);
+        if (parts.length !== 2 || isNaN(parts[0]) || isNaN(parts[1])) {
+            alert('올바른 좌표 형식이 아닙니다.\n"위도, 경도" 형식으로 입력해주세요.');
+            return;
+        }
+
+        let lat = parseFloat(parts[0]);
+        let lng = parseFloat(parts[1]);
+
+        if (lat > 100 && lng < 50) {
+            const temp = lat;
+            lat = lng;
+            lng = temp;
+            showToast('경도·위도 순서가 자동 보정되었습니다.');
+        }
+
+        const coords = new kakao.maps.LatLng(lat, lng);
+        map.setCenter(coords);
+        updateLocationByCoords(coords);
+    }
+
+    function updateLocationByCoords(latlng, placeName) {
+        const lat = latlng.getLat().toFixed(7);
+        const lng = latlng.getLng().toFixed(7);
+
+        marker.setPosition(latlng);
+
+        document.getElementById('latVal').innerText = lat;
+        document.getElementById('lngVal').innerText = lng;
+        document.getElementById('latLngCombined').innerText = lat + ', ' + lng;
+
+        geocoder.coord2Address(latlng.getLng(), latlng.getLat(), function(result, status) {
+            let roadAddr = '도로명 주소 없음';
+            let jibunAddr = '지번 주소 없음';
+
+            if (status === kakao.maps.services.Status.OK) {
+                if (result[0].road_address) {
+                    roadAddr = result[0].road_address.address_name;
+                    if (result[0].road_address.building_name) {
+                        roadAddr += ' (' + result[0].road_address.building_name + ')';
+                    }
+                }
+                if (result[0].address) {
+                    jibunAddr = result[0].address.address_name;
+                }
+            }
+
+            document.getElementById('roadAddr').innerText = roadAddr;
+            document.getElementById('jibunAddr').innerText = jibunAddr;
+
+            const titleHtml = placeName ? '<strong>' + placeName + '</strong><br>' : '';
+            const displayAddr = (roadAddr !== '도로명 주소 없음') ? roadAddr : jibunAddr;
+            const iwContent = '<div style="padding:8px 12px; font-size:12px; line-height:1.5; max-width:250px;">' +
+                titleHtml +
+                '<span style="color:#1e293b;">' + displayAddr + '</span><br>' +
+                '<span style="color:#2563eb; font-weight:bold;">' + lat + ', ' + lng + '</span>' +
+                '</div>';
+            infowindow.setContent(iwContent);
+            infowindow.open(map, marker);
+        });
+
+        const rvEmptyEl = document.getElementById('rv-empty');
+        const rvBadgeEl = document.getElementById('rvInfoBadge');
+
+        roadviewClient.getNearestPanoId(latlng, 50, function(panoId) {
+            if (panoId === null) {
+                rvEmptyEl.style.display = 'flex';
+                rvMarker.setMap(null);
+                rvBadgeEl.innerText = '📸 로드뷰: 반경 50m 내 촬영 데이터 없음';
+            } else {
+                rvEmptyEl.style.display = 'none';
+                rvMarker.setMap
