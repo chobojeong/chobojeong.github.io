@@ -374,7 +374,7 @@
 <div id="toast">클립보드에 복사되었습니다.</div>
 
 <!-- 반드시 YOUR_KAKAO_JAVASCRIPT_KEY를 실제 JavaScript 키로 변경하세요 -->
-<script type="text/javascript" src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=fb4550f02458b51eb736d9690ba09c97&libraries=services&autoload=false"></script>
+<script type="text/javascript" src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=a8ab0c24096e177ce69d0862bbaa9f54&libraries=services&autoload=false"></script>
 
 <script>
     let map, geocoder, ps, marker, infowindow;
