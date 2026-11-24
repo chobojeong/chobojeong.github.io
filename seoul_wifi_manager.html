@@ -9,7 +9,7 @@
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Malgun Gothic', '맑은 고딕', sans-serif; }
         body { display: flex; flex-direction: column; height: 100vh; background-color: #f1f5f9; overflow: hidden; }
 
-        /* 상단 1단: API 연동 및 기본 검색바 */
+        /* 상단 1단: 데이터 상태 및 기본 검색바 */
         header {
             background-color: #ffffff;
             padding: 8px 16px;
@@ -112,6 +112,8 @@
         }
         .btn-action:hover { background: #e2e8f0; }
         .btn-action.active { background: #2563eb; color: #ffffff; border-color: #2563eb; }
+        .btn-teal { background: #0f766e; color: #ffffff; border-color: #0f766e; }
+        .btn-teal:hover { background: #115e59; }
         .btn-green { background: #059669; color: #ffffff; border-color: #059669; }
         .btn-green:hover { background: #047857; }
         .btn-red { background: #dc2626; color: #ffffff; border-color: #dc2626; }
@@ -392,32 +394,28 @@
 </head>
 <body>
 
-<!-- 상단 1단: 서울시 열린데이터 API 및 기본 검색 -->
+<!-- 상단 1단: 저장소 CSV 자동 연동 상태 및 주소·좌표 검색 -->
 <header>
     <div class="title-area">
         <h1>📡 서울시 공공와이파이 2.6만 AP 관제 · 좌표 보정 · 반경 분석</h1>
-        <p>서울시 열린데이터 광장 실시간 API 연동 및 자치구 집계 / 상세 마커 드래그 수정 / 원위치 복구 / 반경 내 AP 추출</p>
+        <p id="dataSourceSubtitle">저장소 최신 데이터(seoul_wifi.csv) 자동 연동 · 자치구 집계 · 마커 드래그 보정 · 반경 AP 추출</p>
     </div>
 
     <div class="top-controls">
-        <div class="input-group" title="서울시 열린데이터 광장(data.seoul.go.kr) 인증키">
-            <label for="seoulApiKey">열린데이터 Key</label>
-            <input type="text" id="seoulApiKey" value="YOUR_SEOUL_OPEN_API_KEY" style="width:140px;" placeholder="인증키 입력">
-            <button type="button" id="btnFetchSeoulApi" style="background:#0f766e;">🔄 API 전체불러오기</button>
-        </div>
+        <button type="button" id="btnReloadDefaultCsv" class="btn-action btn-teal" title="저장소의 seoul_wifi.csv 다시 불러오기">🔄 기본 CSV 새로고침</button>
 
         <input type="file" id="wifiCsvInput" accept=".csv,.txt" style="display:none;">
-        <button type="button" id="btnUploadWifiCsv" class="btn-action" title="열린데이터 광장에서 다운로드한 원본 CSV 파일 불러오기">📂 원본 CSV 로드</button>
+        <button type="button" id="btnUploadWifiCsv" class="btn-action" title="로컬 PC의 다른 CSV 파일 불러오기">📂 다른 CSV 로드</button>
 
         <div class="input-group">
             <label for="addressInput">주소/장소</label>
-            <input type="text" id="addressInput" style="width:145px;" placeholder="예: 서울시청, 강남역">
+            <input type="text" id="addressInput" style="width:155px;" placeholder="예: 서울시청, 강남역">
             <button type="button" id="btnSearchAddr">검색</button>
         </div>
 
         <div class="input-group">
             <label for="coordInput">좌표</label>
-            <input type="text" id="coordInput" style="width:145px;" placeholder="37.5665, 126.9780">
+            <input type="text" id="coordInput" style="width:155px;" placeholder="37.5665, 126.9780">
             <button type="button" id="btnSearchCoord">이동</button>
         </div>
     </div>
@@ -443,9 +441,7 @@
     <div class="filter-group">
         <button type="button" class="btn-action active" id="type-roadmap">🗺️ 일반</button>
         <button type="button" class="btn-action" id="type-skyview">🛰️ 위성</button>
-        <!-- 초기 로드뷰선 OFF -->
         <button type="button" class="btn-action" id="roadLayerBtn">🛣️ 로드뷰선 OFF</button>
-        <!-- 초기 뷰 모드: 지도만 active -->
         <button type="button" class="btn-action active" id="btn-map">지도만</button>
         <button type="button" class="btn-action" id="btn-split">지도+로드뷰</button>
         <button type="button" id="btnUndoLast" class="btn-action btn-amber" disabled title="방금 이동한 마커를 원래 위치로 되돌립니다 (Ctrl+Z)">
@@ -457,9 +453,9 @@
     </div>
 </div>
 
-<!-- API 대용량 로딩 진행바 -->
+<!-- 데이터 로딩 진행바 -->
 <div id="loadingBar">
-    <span id="loadingText">서울시 열린데이터 광장 데이터 수신 중...</span>
+    <span id="loadingText">저장소 데이터(seoul_wifi.csv) 불러오는 중...</span>
     <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
 </div>
 
@@ -547,7 +543,7 @@
             </div>
         </div>
 
-        <!-- 탭 3: 특정 CSV 업로드 기준 임의 반경(100m, 150m 등) 내 AP 공간 검색 -->
+        <!-- 탭 3: 특정 CSV 업로드 기준 임의 반경 내 AP 공간 검색 -->
         <div class="tab-content" id="tabContentRadius">
             <div class="radius-box">
                 <div style="font-size:12px; font-weight:bold; color:#1e3a8a;">1. 기준 좌표 CSV 업로드 (장소명, 위도, 경도)</div>
@@ -595,14 +591,13 @@
     var map = null, geocoder = null, ps = null, clickMarker = null, infowindow = null;
     var roadview = null, roadviewClient = null, rvMarker = null;
 
-    // 초기 상태: 지도만 보기 + 로드뷰 OFF
     var isRoadLayerOn = false;
     var isSplitRoadviewOn = false;
 
     var allWifiData = [];
     var filteredWifiData = [];
-    var modifiedMap = {};       // key: mgrNo_idx, value: apItem
-    var moveHistoryStack = [];  // 실행 취소(Undo) 스택: { apItem, prevLat, prevLng, prevModified, prevRoadAddr, prevJibunAddr }
+    var modifiedMap = {};
+    var moveHistoryStack = [];
     var currentSelectedAp = null;
 
     var guOverlays = [];
@@ -642,78 +637,7 @@
     }
 
     // =========================================================================
-    // 2. 서울시 열린데이터 광장 OpenAPI (TbPublicWifiInfo) 대용량 병렬 호출
-    // =========================================================================
-    async function fetchSeoulOpenApiAll() {
-        var apiKey = document.getElementById('seoulApiKey').value.trim();
-        if (!apiKey || apiKey === 'a8ab0c24096e177ce69d0862bbaa9f54') {
-            alert('서울시 열린데이터 광장 인증키(API Key)를 상단 입력창에 먼저 입력해 주세요.\n(인증키가 없다면 우측 [📂 원본 CSV 로드] 버튼으로 내려받은 CSV 파일을 직접 올릴 수도 있습니다.)');
-            return;
-        }
-
-        var loadingBar = document.getElementById('loadingBar');
-        var loadingText = document.getElementById('loadingText');
-        var progressFill = document.getElementById('progressFill');
-        loadingBar.style.display = 'flex';
-        progressFill.style.width = '5%';
-        loadingText.innerText = '서울시 열린데이터 광장 전체 건수 조회 중...';
-
-        try {
-            var httpsUrl = 'https://openapi.seoul.go.kr:8088/' + encodeURIComponent(apiKey) + '/json/TbPublicWifiInfo/1/5/';
-            var httpUrl = 'http://openapi.seoul.go.kr:8088/' + encodeURIComponent(apiKey) + '/json/TbPublicWifiInfo/1/5/';
-
-            var res = await fetch(httpsUrl).catch(function() { return fetch(httpUrl); });
-            if (!res || !res.ok) throw new Error('API 서버 응답 오류 (HTTPS 혼합 콘텐츠 차단 또는 네트워크 오류)');
-
-            var firstJson = await res.json();
-            if (!firstJson.TbPublicWifiInfo) {
-                var errMsg = (firstJson.RESULT && firstJson.RESULT.MESSAGE) ? firstJson.RESULT.MESSAGE : '응답 데이터 형식 오류';
-                throw new Error(errMsg);
-            }
-
-            var totalCount = firstJson.TbPublicWifiInfo.list_total_count;
-            var batchSize = 1000;
-            var totalPages = Math.ceil(totalCount / batchSize);
-            var rawRows = [];
-
-            var concurrency = 5;
-            for (var p = 0; p < totalPages; p += concurrency) {
-                var promises = [];
-                for (var j = 0; j < concurrency && (p + j) < totalPages; j++) {
-                    var pageIdx = p + j;
-                    var start = pageIdx * batchSize + 1;
-                    var end = Math.min((pageIdx + 1) * batchSize, totalCount);
-                    var pageUrl = 'https://openapi.seoul.go.kr:8088/' + encodeURIComponent(apiKey) + '/json/TbPublicWifiInfo/' + start + '/' + end + '/';
-                    promises.push(
-                        fetch(pageUrl)
-                            .then(function(r) { return r.json(); })
-                            .then(function(data) {
-                                return (data.TbPublicWifiInfo && data.TbPublicWifiInfo.row) ? data.TbPublicWifiInfo.row : [];
-                            })
-                    );
-                }
-
-                var batchResults = await Promise.all(promises);
-                batchResults.forEach(function(rows) {
-                    rawRows = rawRows.concat(rows);
-                });
-
-                var pct = Math.min(100, Math.round((rawRows.length / totalCount) * 100));
-                progressFill.style.width = pct + '%';
-                loadingText.innerText = '데이터 수신 중: ' + rawRows.length.toLocaleString() + ' / ' + totalCount.toLocaleString() + '건 (' + pct + '%)';
-            }
-
-            ingestWifiRecords(rawRows);
-            showToast('서울시 공공와이파이 총 ' + allWifiData.length.toLocaleString() + '건 로드 완료!');
-        } catch (err) {
-            alert('서울시 열린데이터 API 호출 중 오류가 발생했습니다:\n' + err.message + '\n\n※ GitHub Pages(HTTPS) 브라우저 보안 정책으로 HTTP API가 차단될 경우, 열린데이터 광장에서 내려받은 CSV 파일을 [📂 원본 CSV 로드]로 불러와 사용하세요.');
-        } finally {
-            setTimeout(function() { loadingBar.style.display = 'none'; }, 800);
-        }
-    }
-
-    // =========================================================================
-    // 3. 원본 공공와이파이 CSV 파일 로드
+    // 2. CSV 파싱 및 저장소 seoul_wifi.csv 자동 로드 / 수동 CSV 로드
     // =========================================================================
     function parseCsvLine(line) {
         var result = [], current = '', inQuotes = false;
@@ -733,78 +657,124 @@
         return result;
     }
 
+    function parseAndIngestCsvBuffer(buffer, sourceLabel) {
+        var text = new TextDecoder('utf-8').decode(buffer);
+        if (text.indexOf('\uFFFD') !== -1) {
+            text = new TextDecoder('euc-kr').decode(buffer);
+        }
+
+        var lines = text.split(/\r?\n/).filter(function(l) { return l.trim() !== ''; });
+        if (lines.length < 2) {
+            alert('데이터가 없는 CSV 파일입니다.');
+            return false;
+        }
+
+        var headers = parseCsvLine(lines[0]);
+        var idxMap = {
+            mgrNo: headers.findIndex(function(h) { return /관리번호|MGR_NO/i.test(h); }),
+            gu: headers.findIndex(function(h) { return /자치구|시군구|WRDOFC/i.test(h); }),
+            name: headers.findIndex(function(h) { return /와이파이명|AP명|장소명|MAIN_NM/i.test(h); }),
+            addr1: headers.findIndex(function(h) { return /도로명|소재지주소|ADRES1/i.test(h); }),
+            addr2: headers.findIndex(function(h) { return /상세주소|ADRES2/i.test(h); }),
+            instlTy: headers.findIndex(function(h) { return /설치유형|INSTL_TY/i.test(h); }),
+            instlMby: headers.findIndex(function(h) { return /설치기관|관리주체|INSTL_MBY/i.test(h); }),
+            svcSe: headers.findIndex(function(h) { return /서비스구분|SVC_SE/i.test(h); }),
+            year: headers.findIndex(function(h) { return /설치년도|구축년도|CNSTC_YEAR/i.test(h); }),
+            lat: headers.findIndex(function(h) { return /위도|LAT|Y좌표/i.test(h); }),
+            lng: headers.findIndex(function(h) { return /경도|LNT|LNG|LON|X좌표/i.test(h); }),
+            workDttm: headers.findIndex(function(h) { return /작업일자|WORK_DTTM/i.test(h); })
+        };
+
+        var records = [];
+        var latestWorkDate = '';
+
+        for (var i = 1; i < lines.length; i++) {
+            var cols = parseCsvLine(lines[i]);
+            if (idxMap.workDttm !== -1 && cols[idxMap.workDttm] && cols[idxMap.workDttm] > latestWorkDate) {
+                latestWorkDate = cols[idxMap.workDttm];
+            }
+            records.push({
+                X_SWIFI_MGR_NO: idxMap.mgrNo !== -1 ? cols[idxMap.mgrNo] : ('ROW_' + i),
+                X_SWIFI_WRDOFC: idxMap.gu !== -1 ? cols[idxMap.gu] : '',
+                X_SWIFI_MAIN_NM: idxMap.name !== -1 ? cols[idxMap.name] : ('AP_' + i),
+                X_SWIFI_ADRES1: idxMap.addr1 !== -1 ? cols[idxMap.addr1] : '',
+                X_SWIFI_ADRES2: idxMap.addr2 !== -1 ? cols[idxMap.addr2] : '',
+                X_SWIFI_INSTL_TY: idxMap.instlTy !== -1 ? cols[idxMap.instlTy] : '기타',
+                X_SWIFI_INSTL_MBY: idxMap.instlMby !== -1 ? cols[idxMap.instlMby] : '기타',
+                X_SWIFI_SVC_SE: idxMap.svcSe !== -1 ? cols[idxMap.svcSe] : '',
+                X_SWIFI_CNSTC_YEAR: idxMap.year !== -1 ? cols[idxMap.year] : '',
+                LAT: idxMap.lat !== -1 ? cols[idxMap.lat] : cols[1],
+                LNT: idxMap.lng !== -1 ? cols[idxMap.lng] : cols[2]
+            });
+        }
+
+        ingestWifiRecords(records);
+
+        var subEl = document.getElementById('dataSourceSubtitle');
+        var dateNote = latestWorkDate ? (' (기준 작업일자: ' + latestWorkDate + ')') : '';
+        subEl.innerText = '데이터 출처: ' + sourceLabel + dateNote + ' | 총 ' + allWifiData.length.toLocaleString() + '대 적재됨';
+        return true;
+    }
+
+    // 동일 HTTPS 도메인(chobojeong.github.io) 내 seoul_wifi.csv 자동 로드
+    async function loadDefaultRepoCsv() {
+        var loadingBar = document.getElementById('loadingBar');
+        loadingBar.style.display = 'flex';
+        document.getElementById('loadingText').innerText = '저장소 최신 데이터(seoul_wifi.csv) 불러오는 중...';
+        document.getElementById('progressFill').style.width = '55%';
+
+        try {
+            var response = await fetch('./seoul_wifi.csv?v=' + Date.now());
+            if (!response.ok) {
+                document.getElementById('dataSourceSubtitle').innerText =
+                    '기본 seoul_wifi.csv를 찾을 수 없습니다. 상단 [📂 다른 CSV 로드]로 파일을 불러오세요.';
+                return;
+            }
+            var buffer = await response.arrayBuffer();
+            document.getElementById('progressFill').style.width = '85%';
+
+            if (parseAndIngestCsvBuffer(buffer, 'seoul_wifi.csv (자동 동기화)')) {
+                document.getElementById('progressFill').style.width = '100%';
+                showToast('seoul_wifi.csv 자동 로드 완료 (' + allWifiData.length.toLocaleString() + '건)');
+            }
+        } catch (err) {
+            console.warn('seoul_wifi.csv 로드 예외:', err);
+            document.getElementById('dataSourceSubtitle').innerText =
+                '데이터 자동 로드 대기 중 — 상단 [📂 다른 CSV 로드] 버튼으로 CSV를 선택할 수 있습니다.';
+        } finally {
+            setTimeout(function() { loadingBar.style.display = 'none'; }, 400);
+        }
+    }
+
     function handleWifiCsvFile(file) {
         if (!file) return;
         var loadingBar = document.getElementById('loadingBar');
         loadingBar.style.display = 'flex';
-        document.getElementById('loadingText').innerText = 'CSV 파일 파싱 중...';
+        document.getElementById('loadingText').innerText = file.name + ' 파싱 중...';
         document.getElementById('progressFill').style.width = '50%';
 
         var reader = new FileReader();
         reader.onload = function(e) {
-            var buffer = e.target.result;
-            var text = new TextDecoder('utf-8').decode(buffer);
-            if (text.indexOf('\uFFFD') !== -1) {
-                text = new TextDecoder('euc-kr').decode(buffer);
+            if (parseAndIngestCsvBuffer(e.target.result, file.name)) {
+                document.getElementById('progressFill').style.width = '100%';
+                showToast(file.name + ' 로드 완료 (' + allWifiData.length.toLocaleString() + '건)');
             }
-
-            var lines = text.split(/\r?\n/).filter(function(l) { return l.trim() !== ''; });
-            if (lines.length < 2) {
-                loadingBar.style.display = 'none';
-                alert('데이터가 없는 CSV 파일입니다.');
-                return;
-            }
-
-            var headers = parseCsvLine(lines[0]);
-            var idxMap = {
-                mgrNo: headers.findIndex(function(h) { return /관리번호|MGR_NO/i.test(h); }),
-                gu: headers.findIndex(function(h) { return /자치구|시군구|WRDOFC/i.test(h); }),
-                name: headers.findIndex(function(h) { return /와이파이명|AP명|장소명|MAIN_NM/i.test(h); }),
-                addr1: headers.findIndex(function(h) { return /도로명|소재지주소|ADRES1/i.test(h); }),
-                addr2: headers.findIndex(function(h) { return /상세주소|ADRES2/i.test(h); }),
-                instlTy: headers.findIndex(function(h) { return /설치유형|INSTL_TY/i.test(h); }),
-                instlMby: headers.findIndex(function(h) { return /설치기관|관리주체|INSTL_MBY/i.test(h); }),
-                svcSe: headers.findIndex(function(h) { return /서비스구분|SVC_SE/i.test(h); }),
-                year: headers.findIndex(function(h) { return /설치년도|구축년도|CNSTC_YEAR/i.test(h); }),
-                lat: headers.findIndex(function(h) { return /위도|LAT|Y좌표/i.test(h); }),
-                lng: headers.findIndex(function(h) { return /경도|LNT|LNG|LON|X좌표/i.test(h); })
-            };
-
-            var records = [];
-            for (var i = 1; i < lines.length; i++) {
-                var cols = parseCsvLine(lines[i]);
-                records.push({
-                    X_SWIFI_MGR_NO: idxMap.mgrNo !== -1 ? cols[idxMap.mgrNo] : ('ROW_' + i),
-                    X_SWIFI_WRDOFC: idxMap.gu !== -1 ? cols[idxMap.gu] : '',
-                    X_SWIFI_MAIN_NM: idxMap.name !== -1 ? cols[idxMap.name] : ('AP_' + i),
-                    X_SWIFI_ADRES1: idxMap.addr1 !== -1 ? cols[idxMap.addr1] : '',
-                    X_SWIFI_ADRES2: idxMap.addr2 !== -1 ? cols[idxMap.addr2] : '',
-                    X_SWIFI_INSTL_TY: idxMap.instlTy !== -1 ? cols[idxMap.instlTy] : '기타',
-                    X_SWIFI_INSTL_MBY: idxMap.instlMby !== -1 ? cols[idxMap.instlMby] : '기타',
-                    X_SWIFI_SVC_SE: idxMap.svcSe !== -1 ? cols[idxMap.svcSe] : '',
-                    X_SWIFI_CNSTC_YEAR: idxMap.year !== -1 ? cols[idxMap.year] : '',
-                    LAT: idxMap.lat !== -1 ? cols[idxMap.lat] : cols[1],
-                    LNT: idxMap.lng !== -1 ? cols[idxMap.lng] : cols[2]
-                });
-            }
-
-            ingestWifiRecords(records);
-            document.getElementById('progressFill').style.width = '100%';
             setTimeout(function() { loadingBar.style.display = 'none'; }, 400);
-            showToast('CSV에서 총 ' + allWifiData.length.toLocaleString() + '건 로드 완료!');
         };
         reader.readAsArrayBuffer(file);
     }
 
     // =========================================================================
-    // 4. 데이터 정규화 및 카테고리 필터 옵션 자동 생성
+    // 3. 데이터 정규화 및 카테고리 필터 옵션 자동 생성
     // =========================================================================
     function ingestWifiRecords(rawRows) {
         allWifiData = [];
         modifiedMap = {};
         moveHistoryStack = [];
         currentSelectedAp = null;
+        document.getElementById('selectedRevertBox').style.display = 'none';
         updateModifiedCounters();
+        renderModifiedList();
 
         var guSet = new Set();
         var orgSet = new Set();
@@ -872,7 +842,7 @@
     }
 
     // =========================================================================
-    // 5. 카테고리 필터 적용 및 줌 레벨별 동적 렌더링
+    // 4. 카테고리 필터 적용 및 줌 레벨별 동적 렌더링
     // =========================================================================
     function applyFiltersAndRender() {
         var guVal = document.getElementById('filterGu').value;
@@ -918,7 +888,7 @@
         var viewModeEl = document.getElementById('statViewMode');
 
         if (filteredWifiData.length === 0) {
-            viewModeEl.innerHTML = '표시할 데이터가 없습니다. (상단 API 또는 CSV로 데이터를 불러오세요)';
+            viewModeEl.innerHTML = '표시할 데이터가 없습니다.';
             return;
         }
 
@@ -1001,7 +971,6 @@
                 image: apItem.modified ? redIcon : greenIcon
             });
 
-            // 마커 인스턴스를 apItem에 참조 저장 (원위치 복구 시 즉시 좌표/아이콘 갱신용)
             apItem._markerRef = m;
 
             kakao.maps.event.addListener(m, 'click', function() {
@@ -1009,7 +978,6 @@
             });
 
             kakao.maps.event.addListener(m, 'dragend', function() {
-                // 실행 취소(Undo) 스택에 이동 직전 상태 기록
                 moveHistoryStack.push({
                     apItem: apItem,
                     prevLat: apItem.lat,
@@ -1064,7 +1032,6 @@
         document.getElementById('infoApMeta').innerText = apItem.gu + ' | ' + apItem.instlMby + ' | ' + apItem.instlTy;
         document.getElementById('latLngCombined').innerText = apItem.lat + ', ' + apItem.lng;
 
-        // 수정된 AP일 경우 개별 원위치 복구 버튼 패널 노출
         var revertBox = document.getElementById('selectedRevertBox');
         if (apItem.modified) {
             revertBox.style.display = 'block';
@@ -1077,7 +1044,7 @@
     }
 
     // =========================================================================
-    // 6. 실수 이동 복구 기능 (직전 되돌리기 / 개별 원위치 / 전체 원복)
+    // 5. 실수 이동 복구 기능 (직전 되돌리기 / 개별 원위치 / 전체 원복)
     // =========================================================================
     function undoLastMarkerMove() {
         if (moveHistoryStack.length === 0) {
@@ -1124,7 +1091,6 @@
         var modKey = item.mgrNo + '_' + item.idx;
         delete modifiedMap[modKey];
 
-        // 히스토리 스택에서 해당 AP 기록 정리
         moveHistoryStack = moveHistoryStack.filter(function(h) { return h.apItem.idx !== idx; });
 
         if (item._markerRef) {
@@ -1238,7 +1204,7 @@
     }
 
     // =========================================================================
-    // 7. 특정 CSV 업로드 기반 임의 반경 내 AP 공간 검색
+    // 6. 특정 CSV 업로드 기반 임의 반경 내 AP 공간 검색
     // =========================================================================
     function handleTargetCsvUpload(file) {
         if (!file) return;
@@ -1298,7 +1264,7 @@
 
     function runRadiusAnalysis() {
         if (allWifiData.length === 0) {
-            alert('먼저 상단에서 서울시 공공와이파이 데이터(API 또는 원본 CSV)를 불러와 주세요.');
+            alert('먼저 서울시 공공와이파이 데이터가 적재되어야 합니다.');
             return;
         }
         if (uploadedTargetPoints.length === 0) {
@@ -1431,7 +1397,7 @@
     }
 
     // =========================================================================
-    // 8. 기본 지도 / 로드뷰 / 주소·좌표 검색 초기화
+    // 7. 기본 지도 / 로드뷰 / 주소·좌표 검색 초기화
     // =========================================================================
     function updateLocationByCoords(latlng, placeName, targetMarker, fallbackAddr) {
         var lat = latlng.getLat().toFixed(7);
@@ -1459,7 +1425,6 @@
             infowindow.open(map, targetMarker || clickMarker);
         });
 
-        // 로드뷰 분할 화면이 켜져 있을 때만 로드뷰 파노라마 동기화 (초기 로드뷰 OFF 시 불필요한 호출 방지)
         if (isSplitRoadviewOn && roadview && roadviewClient) {
             roadviewClient.getNearestPanoId(latlng, 50, function(panoId) {
                 var rvEmptyEl = document.getElementById('rv-empty');
@@ -1476,7 +1441,7 @@
     }
 
     function bindAllEvents() {
-        document.getElementById('btnFetchSeoulApi').addEventListener('click', fetchSeoulOpenApiAll);
+        document.getElementById('btnReloadDefaultCsv').addEventListener('click', loadDefaultRepoCsv);
         document.getElementById('btnUploadWifiCsv').addEventListener('click', function() { document.getElementById('wifiCsvInput').click(); });
         document.getElementById('wifiCsvInput').addEventListener('change', function(e) { if (e.target.files[0]) handleWifiCsvFile(e.target.files[0]); });
 
@@ -1504,6 +1469,10 @@
             });
         });
 
+        document.getElementById('addressInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') document.getElementById('btnSearchAddr').click();
+        });
+
         document.getElementById('btnSearchCoord').addEventListener('click', function() {
             var parts = document.getElementById('coordInput').value.trim().split(/[\s,]+/).filter(Boolean);
             if (parts.length !== 2) return alert('위도, 경도 형식으로 입력하세요.');
@@ -1514,6 +1483,10 @@
             currentSelectedAp = null;
             document.getElementById('selectedRevertBox').style.display = 'none';
             updateLocationByCoords(c, '좌표 검색');
+        });
+
+        document.getElementById('coordInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') document.getElementById('btnSearchCoord').click();
         });
 
         ['filterGu', 'filterOrg', 'filterType'].forEach(function(id) {
@@ -1539,7 +1512,6 @@
             this.classList.add('active'); document.getElementById('type-roadmap').classList.remove('active');
         });
 
-        // 로드뷰 파란 도로선 토글 (초기 OFF 상태)
         document.getElementById('roadLayerBtn').addEventListener('click', function() {
             if (isRoadLayerOn) {
                 map.removeOverlayMapTypeId(kakao.maps.MapTypeId.ROADVIEW);
@@ -1553,7 +1525,6 @@
             isRoadLayerOn = !isRoadLayerOn;
         });
 
-        // 지도만 보기 (초기 활성)
         document.getElementById('btn-map').addEventListener('click', function() {
             isSplitRoadviewOn = false;
             document.getElementById('visualArea').className = 'visual-area mode-map';
@@ -1563,7 +1534,6 @@
             setTimeout(function() { map.relayout(); }, 150);
         });
 
-        // 지도 + 로드뷰 분할 보기 전환
         document.getElementById('btn-split').addEventListener('click', function() {
             isSplitRoadviewOn = true;
             document.getElementById('visualArea').className = 'visual-area mode-split';
@@ -1579,7 +1549,6 @@
             }, 150);
         });
 
-        // 우측 3개 탭 전환
         ['Info', 'Mod', 'Radius'].forEach(function(name) {
             document.getElementById('tabBtn' + name).addEventListener('click', function() {
                 ['Info', 'Mod', 'Radius'].forEach(function(n) {
@@ -1589,7 +1558,6 @@
             });
         });
 
-        // 마커 원위치 복구 버튼 및 Ctrl+Z 단축키 이벤트
         document.getElementById('btnUndoLast').addEventListener('click', undoLastMarkerMove);
         document.getElementById('btnRevertSelectedAp').addEventListener('click', function() {
             if (currentSelectedAp) {
@@ -1639,7 +1607,6 @@
             });
 
             map.addControl(new kakao.maps.ZoomControl(), kakao.maps.ControlPosition.RIGHT);
-            // 초기 접속 시 로드뷰선(ROADVIEW) 오버레이는 OFF 상태로 유지
 
             geocoder = new kakao.maps.services.Geocoder();
             ps = new kakao.maps.services.Places();
@@ -1651,13 +1618,12 @@
             });
             infowindow = new kakao.maps.InfoWindow({ zIndex: 5 });
 
-            // 로드뷰 객체는 미리 초기화하되, [지도+로드뷰] 버튼 클릭 시에만 화면 표시 및 API 호출
             roadview = new kakao.maps.Roadview(document.getElementById('roadview'));
             roadviewClient = new kakao.maps.RoadviewClient();
             rvMarker = new kakao.maps.Marker({
                 image: createApMarkerIcon('#f59e0b'),
                 position: seoulCenter,
-                map: null // 초기 숨김
+                map: null
             });
 
             var idleTimer = null;
@@ -1675,6 +1641,9 @@
             });
 
             updateLocationByCoords(seoulCenter, '서울특별시청');
+
+            // 지도 초기화 완료 후 저장소의 seoul_wifi.csv 자동 로드
+            loadDefaultRepoCsv();
         });
     });
 </script>
