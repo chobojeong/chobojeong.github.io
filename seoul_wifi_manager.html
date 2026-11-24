@@ -818,4 +818,674 @@
             });
         }
 
-        populateSelectOptions('filterGu', Array.from(guSet
+        populateSelectOptions('filterGu', Array.from(guSet).sort(), '전체 자치구 (' + guSet.size + '개)');
+        populateSelectOptions('filterOrg', Array.from(orgSet).sort(), '전체 관리주체 (' + orgSet.size + '개)');
+        populateSelectOptions('filterType', Array.from(typeSet).sort(), '전체 설치유형 (' + typeSet.size + '개)');
+
+        document.getElementById('statTotal').innerText = allWifiData.length.toLocaleString();
+        applyFiltersAndRender();
+    }
+
+    function populateSelectOptions(selectId, items, defaultLabel) {
+        var sel = document.getElementById(selectId);
+        sel.innerHTML = '<option value="ALL">' + defaultLabel + '</option>';
+        items.forEach(function(item) {
+            var opt = document.createElement('option');
+            opt.value = item;
+            opt.innerText = item;
+            sel.appendChild(opt);
+        });
+    }
+
+    // =========================================================================
+    // 5. 카테고리 필터 적용 및 줌 레벨별 동적 렌더링 (자치구 집계 vs 개별 마커)
+    // =========================================================================
+    function applyFiltersAndRender() {
+        var guVal = document.getElementById('filterGu').value;
+        var orgVal = document.getElementById('filterOrg').value;
+        var typeVal = document.getElementById('filterType').value;
+        var kwVal = document.getElementById('filterKeyword').value.trim().toLowerCase();
+
+        filteredWifiData = allWifiData.filter(function(item) {
+            if (guVal !== 'ALL' && item.gu !== guVal) return false;
+            if (orgVal !== 'ALL' && item.instlMby !== orgVal) return false;
+            if (typeVal !== 'ALL' && item.instlTy !== typeVal) return false;
+            if (kwVal) {
+                var hay = (item.name + ' ' + item.mgrNo + ' ' + item.addr1).toLowerCase();
+                if (hay.indexOf(kwVal) === -1) return false;
+            }
+            return true;
+        });
+
+        document.getElementById('statFiltered').innerText = filteredWifiData.length.toLocaleString();
+
+        // 특정 자치구 하나만 선택했고 현재 줌이 넓다면 해당 자치구 중심으로 이동
+        if (guVal !== 'ALL' && SEOUL_GU_CENTERS[guVal] && map.getLevel() > DETAIL_ZOOM_LEVEL) {
+            var c = SEOUL_GU_CENTERS[guVal];
+            map.setCenter(new kakao.maps.LatLng(c[0], c[1]));
+            map.setLevel(5);
+        }
+
+        renderMapByZoomLevel();
+    }
+
+    function clearAllMapLayers() {
+        guOverlays.forEach(function(ov) { ov.setMap(null); });
+        guOverlays = [];
+
+        activeMarkers.forEach(function(m) { m.setMap(null); });
+        activeMarkers = [];
+    }
+
+    function renderMapByZoomLevel() {
+        if (!map) return;
+        clearAllMapLayers();
+
+        var level = map.getLevel();
+        var viewModeEl = document.getElementById('statViewMode');
+
+        if (filteredWifiData.length === 0) {
+            viewModeEl.innerHTML = '표시할 데이터가 없습니다. (상단 API 또는 CSV로 데이터를 불러오세요)';
+            return;
+        }
+
+        // [모드 A] 지도 축소 상태 (Level >= 6): 자치구별 '전체 몇 개' 집계 배지 표출
+        if (level > DETAIL_ZOOM_LEVEL) {
+            viewModeEl.innerHTML = '줌 레벨(' + level + '): <strong>자치구별 수량 집계 모드</strong> (배지 클릭 또는 확대 시 개별 마커)';
+
+            var guCounts = {};
+            var guCoordSums = {};
+
+            for (var i = 0; i < filteredWifiData.length; i++) {
+                var d = filteredWifiData[i];
+                if (!guCounts[d.gu]) {
+                    guCounts[d.gu] = 0;
+                    guCoordSums[d.gu] = { lat: 0, lng: 0 };
+                }
+                guCounts[d.gu]++;
+                guCoordSums[d.gu].lat += d.lat;
+                guCoordSums[d.gu].lng += d.lng;
+            }
+
+            Object.keys(guCounts).forEach(function(guName) {
+                var count = guCounts[guName];
+                var centerLatLng;
+                if (SEOUL_GU_CENTERS[guName]) {
+                    centerLatLng = new kakao.maps.LatLng(SEOUL_GU_CENTERS[guName][0], SEOUL_GU_CENTERS[guName][1]);
+                } else {
+                    centerLatLng = new kakao.maps.LatLng(
+                        guCoordSums[guName].lat / count,
+                        guCoordSums[guName].lng / count
+                    );
+                }
+
+                var badgeEl = document.createElement('div');
+                badgeEl.className = 'gu-cluster-badge';
+                badgeEl.innerHTML = guName + ' <span>' + count.toLocaleString() + '개</span>';
+                badgeEl.onclick = function() {
+                    map.setCenter(centerLatLng);
+                    map.setLevel(DETAIL_ZOOM_LEVEL);
+                };
+
+                var overlay = new kakao.maps.CustomOverlay({
+                    position: centerLatLng,
+                    content: badgeEl,
+                    yAnchor: 0.5
+                });
+                overlay.setMap(map);
+                guOverlays.push(overlay);
+            });
+            return;
+        }
+
+        // [모드 B] 지도 확대 상태 (Level <= 5): 현재 화면 영역(Bounds) 내 개별 드래그 마커 표출
+        var bounds = map.getBounds();
+        var sw = bounds.getSouthWest();
+        var ne = bounds.getNorthEast();
+
+        var inBoundsItems = [];
+        for (var k = 0; k < filteredWifiData.length; k++) {
+            var item = filteredWifiData[k];
+            if (item.lat >= sw.getLat() && item.lat <= ne.getLat() &&
+                item.lng >= sw.getLng() && item.lng <= ne.getLng()) {
+                inBoundsItems.push(item);
+                if (inBoundsItems.length >= MAX_VISIBLE_MARKERS) break;
+            }
+        }
+
+        viewModeEl.innerHTML = '줌 레벨(' + level + '): <strong>개별 마커 모드</strong> (현재 화면 <strong>' + inBoundsItems.length + '</strong>개 표시 · 드래그 수정 가능)';
+
+        var greenIcon = createApMarkerIcon('#059669');
+        var redIcon = createApMarkerIcon('#dc2626');
+
+        inBoundsItems.forEach(function(apItem) {
+            var pos = new kakao.maps.LatLng(apItem.lat, apItem.lng);
+            var m = new kakao.maps.Marker({
+                position: pos,
+                map: map,
+                draggable: true,
+                title: apItem.name + ' (' + apItem.mgrNo + ')',
+                image: apItem.modified ? redIcon : greenIcon
+            });
+
+            kakao.maps.event.addListener(m, 'click', function() {
+                showApDetailInfo(apItem, m);
+            });
+
+            kakao.maps.event.addListener(m, 'dragend', function() {
+                var newPos = m.getPosition();
+                apItem.lat = parseFloat(newPos.getLat().toFixed(7));
+                apItem.lng = parseFloat(newPos.getLng().toFixed(7));
+                apItem.modified = true;
+                m.setImage(redIcon);
+
+                // 수정된 내역 전용 맵에 등록
+                modifiedMap[apItem.mgrNo + '_' + apItem.idx] = apItem;
+
+                // 변경된 좌표 기준 역지오코딩 주소 자동 갱신
+                geocoder.coord2Address(apItem.lng, apItem.lat, function(result, status) {
+                    if (status === kakao.maps.services.Status.OK) {
+                        apItem.modRoadAddr = result[0].road_address ? result[0].road_address.address_name : '';
+                        apItem.modJibunAddr = result[0].address ? result[0].address.address_name : '';
+                    }
+                    updateModifiedCounters();
+                    renderModifiedList();
+                    showApDetailInfo(apItem, m);
+                });
+
+                showToast('[' + apItem.name + '] 좌표 이동 완료 (수정 내역에 별도 저장됨)');
+            });
+
+            activeMarkers.push(m);
+        });
+    }
+
+    function createApMarkerIcon(colorHex) {
+        var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="26" height="34" viewBox="0 0 26 34">' +
+            '<path fill="' + colorHex + '" stroke="#ffffff" stroke-width="2" d="M13 1C6.4 1 1 6.4 1 13c0 8.5 12 19 12 19s12-10.5 12-19C25 6.4 19.6 1 13 1z"/>' +
+            '<circle fill="#ffffff" cx="13" cy="13" r="4.5"/>' +
+            '</svg>';
+        return new kakao.maps.MarkerImage(
+            'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg),
+            new kakao.maps.Size(26, 34),
+            { offset: new kakao.maps.Point(13, 34) }
+        );
+    }
+
+    function showApDetailInfo(apItem, markerObj) {
+        var pos = new kakao.maps.LatLng(apItem.lat, apItem.lng);
+        document.getElementById('infoApName').innerText = apItem.name + ' (' + apItem.mgrNo + ')';
+        document.getElementById('infoApMeta').innerText = apItem.gu + ' | ' + apItem.instlMby + ' | ' + apItem.instlTy;
+        document.getElementById('latLngCombined').innerText = apItem.lat + ', ' + apItem.lng;
+
+        updateLocationByCoords(pos, apItem.name + (apItem.modified ? ' [수정됨]' : ''), markerObj, apItem.addr1);
+    }
+
+    // =========================================================================
+    // 6. 수정된 내역만 별도 관리 및 차분(Delta) CSV 다운로드
+    // =========================================================================
+    function updateModifiedCounters() {
+        var count = Object.keys(modifiedMap).length;
+        document.getElementById('modCountTop').innerText = count;
+        document.getElementById('modCountTab').innerText = count;
+        document.getElementById('btnDownloadModified').disabled = (count === 0);
+        document.getElementById('btnExportModTab').disabled = (count === 0);
+    }
+
+    function renderModifiedList() {
+        var keys = Object.keys(modifiedMap);
+        var container = document.getElementById('modListContainer');
+        if (keys.length === 0) {
+            container.innerHTML = '<div style="font-size:12px; color:#64748b; text-align:center; padding:30px 10px;">아직 드래그로 위치를 수정한 AP가 없습니다.</div>';
+            return;
+        }
+
+        var html = '';
+        keys.forEach(function(k) {
+            var item = modifiedMap[k];
+            html += '<div class="data-card modified" onclick="focusOnAp(' + item.idx + ')">' +
+                '<div class="card-top"><span>' + item.name + '</span><span style="color:#dc2626; font-size:11px;">' + item.gu + '</span></div>' +
+                '<div class="card-sub">관리번호: ' + item.mgrNo + ' | ' + item.instlMby + '</div>' +
+                '<div class="card-sub">보정주소: ' + (item.modRoadAddr || item.modJibunAddr || item.addr1) + '</div>' +
+                '<div class="card-coord">기존: ' + item.origLat + ', ' + item.origLng + ' → 변경: ' + item.lat + ', ' + item.lng + '</div>' +
+                '</div>';
+        });
+        container.innerHTML = html;
+    }
+
+    window.focusOnAp = function(idx) {
+        var item = allWifiData[idx];
+        if (!item) return;
+        var pos = new kakao.maps.LatLng(item.lat, item.lng);
+        map.setCenter(pos);
+        if (map.getLevel() > 3) map.setLevel(3);
+        showApDetailInfo(item, null);
+    };
+
+    function downloadModifiedOnlyCsv() {
+        var keys = Object.keys(modifiedMap);
+        if (keys.length === 0) return alert('수정된 내역이 없습니다.');
+
+        var headers = ['관리번호', '자치구', 'AP명', '관리주체', '설치유형', '원본_위도', '원본_경도', '수정_위도', '수정_경도', '기존_주소', '보정_도로명주소', '보정_지번주소'];
+        var rows = [headers.join(',')];
+
+        keys.forEach(function(k) {
+            var d = modifiedMap[k];
+            var line = [
+                d.mgrNo, d.gu, d.name, d.instlMby, d.instlTy,
+                d.origLat, d.origLng, d.lat, d.lng,
+                d.addr1, d.modRoadAddr, d.modJibunAddr
+            ].map(function(v) {
+                var s = String(v || '');
+                return (s.indexOf(',') !== -1 || s.indexOf('"') !== -1) ? '"' + s.replace(/"/g, '""') + '"' : s;
+            }).join(',');
+            rows.push(line);
+        });
+
+        triggerCsvDownload(rows.join('\r\n'), '서울시공공와이파이_좌표수정내역');
+        showToast('수정된 ' + keys.length + '건의 내역만 별도 CSV로 저장했습니다.');
+    }
+
+    // =========================================================================
+    // 7. 특정 CSV 업로드 기반 임의 반경(100m, 150m 등) 내 AP 공간 검색
+    // =========================================================================
+    function handleTargetCsvUpload(file) {
+        if (!file) return;
+        var reader = new FileReader();
+        reader.onload = function(e) {
+            var buffer = e.target.result;
+            var text = new TextDecoder('utf-8').decode(buffer);
+            if (text.indexOf('\uFFFD') !== -1) text = new TextDecoder('euc-kr').decode(buffer);
+
+            var lines = text.split(/\r?\n/).filter(function(l) { return l.trim() !== ''; });
+            if (lines.length === 0) return;
+
+            var firstCols = parseCsvLine(lines[0]);
+            var hasHeader = isNaN(parseFloat(firstCols[1])) && isNaN(parseFloat(firstCols[2]));
+            var nameIdx = 0, latIdx = 1, lngIdx = 2;
+
+            if (hasHeader) {
+                var nI = firstCols.findIndex(function(h) { return /장소|이름|명칭|학교|지점|name/i.test(h); });
+                var laI = firstCols.findIndex(function(h) { return /위도|lat|y/i.test(h); });
+                var lnI = firstCols.findIndex(function(h) { return /경도|lng|lon|x/i.test(h); });
+                if (nI !== -1) nameIdx = nI;
+                if (laI !== -1) latIdx = laI;
+                if (lnI !== -1) lngIdx = lnI;
+            }
+
+            uploadedTargetPoints = [];
+            for (var i = (hasHeader ? 1 : 0); i < lines.length; i++) {
+                var cols = parseCsvLine(lines[i]);
+                if (cols.length < 3) continue;
+                var lat = parseFloat(cols[latIdx]);
+                var lng = parseFloat(cols[lngIdx]);
+                if (isNaN(lat) || isNaN(lng)) continue;
+                if (lat > 100 && lng < 50) { var t = lat; lat = lng; lng = t; }
+
+                uploadedTargetPoints.push({
+                    name: cols[nameIdx] || ('기준점 ' + (uploadedTargetPoints.length + 1)),
+                    lat: lat,
+                    lng: lng
+                });
+            }
+
+            document.getElementById('targetCsvStatus').innerText = file.name + ' (' + uploadedTargetPoints.length + '개 지점)';
+            runRadiusAnalysis();
+        };
+        reader.readAsArrayBuffer(file);
+    }
+
+    // 하버사인(Haversine) 거리 계산 공식 (단위: 미터 m)
+    function getDistanceMeters(lat1, lng1, lat2, lng2) {
+        var R = 6371000;
+        var dLat = (lat2 - lat1) * Math.PI / 180;
+        var dLng = (lng2 - lng1) * Math.PI / 180;
+        var a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                Math.sin(dLng / 2) * Math.sin(dLng / 2);
+        return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    }
+
+    function runRadiusAnalysis() {
+        if (allWifiData.length === 0) {
+            alert('먼저 상단에서 서울시 공공와이파이 데이터(API 또는 원본 CSV)를 불러와 주세요.');
+            return;
+        }
+        if (uploadedTargetPoints.length === 0) {
+            alert('기준 좌표 CSV 파일을 먼저 선택해 주세요.');
+            return;
+        }
+
+        // 기존 반경 원 및 기준점 마커 제거
+        radiusCircles.forEach(function(c) { c.setMap(null); });
+        radiusCircles = [];
+        targetMarkers.forEach(function(m) { m.setMap(null); });
+        targetMarkers = [];
+        radiusMatchedResults = [];
+
+        var radiusM = parseFloat(document.getElementById('radiusMetersInput').value) || 100;
+        var bounds = new kakao.maps.LatLngBounds();
+
+        // 위도 1도 ≈ 111,320m, 경도 1도 ≈ 88,800m (서울 위도 기준 빠른 바운딩 사전 필터링)
+        var latDelta = (radiusM / 111320) * 1.2;
+        var lngDelta = (radiusM / 88800) * 1.2;
+
+        // 현재 필터링된 AP 대상(또는 전체 AP 대상)으로 검색
+        var searchPool = filteredWifiData.length > 0 ? filteredWifiData : allWifiData;
+
+        var targetIcon = createApMarkerIcon('#7c3aed'); // 보라색 기준점 마커
+
+        uploadedTargetPoints.forEach(function(pt) {
+            var centerPos = new kakao.maps.LatLng(pt.lat, pt.lng);
+            bounds.extend(centerPos);
+
+            // 1. 기준점 마커 표시
+            var tm = new kakao.maps.Marker({
+                position: centerPos,
+                map: map,
+                title: '[기준점] ' + pt.name,
+                image: targetIcon
+            });
+            targetMarkers.push(tm);
+
+            // 2. 반경 원(Circle) 표시
+            var circle = new kakao.maps.Circle({
+                center: centerPos,
+                radius: radiusM,
+                strokeWeight: 2,
+                strokeColor: '#7c3aed',
+                strokeOpacity: 0.85,
+                strokeStyle: 'solid',
+                fillColor: '#8b5cf6',
+                fillOpacity: 0.18
+            });
+            circle.setMap(map);
+            radiusCircles.push(circle);
+
+            // 3. 반경 내 AP 매칭
+            for (var i = 0; i < searchPool.length; i++) {
+                var ap = searchPool[i];
+                if (Math.abs(ap.lat - pt.lat) > latDelta || Math.abs(ap.lng - pt.lng) > lngDelta) continue;
+
+                var dist = getDistanceMeters(pt.lat, pt.lng, ap.lat, ap.lng);
+                if (dist <= radiusM) {
+                    radiusMatchedResults.push({
+                        targetName: pt.name,
+                        targetLat: pt.lat,
+                        targetLng: pt.lng,
+                        distanceM: Math.round(dist * 10) / 10,
+                        ap: ap
+                    });
+                }
+            }
+        });
+
+        // 거리순 정렬
+        radiusMatchedResults.sort(function(a, b) { return a.distanceM - b.distanceM; });
+
+        document.getElementById('radiusResultSummary').innerText =
+            '기준 ' + uploadedTargetPoints.length + '곳 반경 ' + radiusM + 'm 내 AP: 총 ' + radiusMatchedResults.length + '대';
+        document.getElementById('btnDownloadRadiusCsv').disabled = (radiusMatchedResults.length === 0);
+
+        renderRadiusResultList();
+
+        if (uploadedTargetPoints.length > 0) {
+            map.setBounds(bounds);
+            if (map.getLevel() > 4) map.setLevel(4);
+        }
+        showToast('반경 ' + radiusM + 'm 내 AP ' + radiusMatchedResults.length + '대가 검색되었습니다.');
+    }
+
+    function renderRadiusResultList() {
+        var container = document.getElementById('radiusListContainer');
+        if (radiusMatchedResults.length === 0) {
+            container.innerHTML = '<div style="font-size:12px; color:#64748b; text-align:center; padding:24px;">지정한 반경 내에 위치한 AP가 없습니다.</div>';
+            return;
+        }
+
+        var html = '';
+        radiusMatchedResults.slice(0, 300).forEach(function(r) {
+            html += '<div class="data-card" onclick="focusOnAp(' + r.ap.idx + ')">' +
+                '<div class="card-top"><span>' + r.ap.name + '</span><span style="color:#7c3aed;">거리 ' + r.distanceM + 'm</span></div>' +
+                '<div class="card-sub">기준지: <b>' + r.targetName + '</b> | ' + r.ap.gu + ' · ' + r.ap.instlMby + '</div>' +
+                '<div class="card-sub">주소: ' + r.ap.addr1 + '</div>' +
+                '</div>';
+        });
+        container.innerHTML = html;
+    }
+
+    function downloadRadiusResultCsv() {
+        if (radiusMatchedResults.length === 0) return;
+        var radiusM = document.getElementById('radiusMetersInput').value;
+        var headers = ['기준장소명', '기준_위도', '기준_경도', '검색반경(m)', '이격거리(m)', '관리번호', '자치구', 'AP명', '관리주체', '설치유형', 'AP_위도', 'AP_경도', '설치주소'];
+        var rows = [headers.join(',')];
+
+        radiusMatchedResults.forEach(function(r) {
+            var line = [
+                r.targetName, r.targetLat, r.targetLng, radiusM, r.distanceM,
+                r.ap.mgrNo, r.ap.gu, r.ap.name, r.ap.instlMby, r.ap.instlTy,
+                r.ap.lat, r.ap.lng, r.ap.addr1
+            ].map(function(v) {
+                var s = String(v || '');
+                return (s.indexOf(',') !== -1 || s.indexOf('"') !== -1) ? '"' + s.replace(/"/g, '""') + '"' : s;
+            }).join(',');
+            rows.push(line);
+        });
+
+        triggerCsvDownload(rows.join('\r\n'), '반경' + radiusM + 'm_내_AP목록');
+    }
+
+    function triggerCsvDownload(csvBody, prefix) {
+        var blob = new Blob(['\uFEFF' + csvBody], { type: 'text/csv;charset=utf-8;' });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        var now = new Date();
+        var tag = now.getFullYear() + String(now.getMonth() + 1).padStart(2, '0') + String(now.getDate()).padStart(2, '0');
+        a.href = url;
+        a.download = prefix + '_' + tag + '.csv';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }
+
+    // =========================================================================
+    // 8. 기본 지도 / 로드뷰 / 주소·좌표 검색 초기화
+    // =========================================================================
+    function updateLocationByCoords(latlng, placeName, targetMarker, fallbackAddr) {
+        var lat = latlng.getLat().toFixed(7);
+        var lng = latlng.getLng().toFixed(7);
+
+        if (!targetMarker && clickMarker) clickMarker.setPosition(latlng);
+        document.getElementById('latLngCombined').innerText = lat + ', ' + lng;
+
+        geocoder.coord2Address(latlng.getLng(), latlng.getLat(), function(result, status) {
+            var roadAddr = '도로명 주소 없음', jibunAddr = '지번 주소 없음';
+            if (status === kakao.maps.services.Status.OK) {
+                if (result[0].road_address) roadAddr = result[0].road_address.address_name;
+                if (result[0].address) jibunAddr = result[0].address.address_name;
+            } else if (fallbackAddr) {
+                roadAddr = fallbackAddr;
+            }
+            document.getElementById('roadAddr').innerText = roadAddr;
+            document.getElementById('jibunAddr').innerText = jibunAddr;
+
+            var iwContent = '<div style="padding:7px 10px; font-size:12px; line-height:1.4; max-width:250px;">' +
+                '<strong>' + (placeName || '선택 위치') + '</strong><br>' +
+                '<span style="color:#475569;">' + (roadAddr !== '도로명 주소 없음' ? roadAddr : jibunAddr) + '</span><br>' +
+                '<span style="color:#2563eb; font-weight:bold;">' + lat + ', ' + lng + '</span></div>';
+            infowindow.setContent(iwContent);
+            infowindow.open(map, targetMarker || clickMarker);
+        });
+
+        roadviewClient.getNearestPanoId(latlng, 50, function(panoId) {
+            var rvEmptyEl = document.getElementById('rv-empty');
+            if (panoId === null) {
+                rvEmptyEl.style.display = 'flex';
+                if (rvMarker) rvMarker.setMap(null);
+            } else {
+                rvEmptyEl.style.display = 'none';
+                if (rvMarker) rvMarker.setMap(map);
+                roadview.setPanoId(panoId, latlng);
+            }
+        });
+    }
+
+    function bindAllEvents() {
+        document.getElementById('btnFetchSeoulApi').addEventListener('click', fetchSeoulOpenApiAll);
+        document.getElementById('btnUploadWifiCsv').addEventListener('click', function() { document.getElementById('wifiCsvInput').click(); });
+        document.getElementById('wifiCsvInput').addEventListener('change', function(e) { if (e.target.files[0]) handleWifiCsvFile(e.target.files[0]); });
+
+        document.getElementById('btnSearchAddr').addEventListener('click', function() {
+            var q = document.getElementById('addressInput').value.trim();
+            if (!q) return;
+            geocoder.addressSearch(q, function(res, status) {
+                if (status === kakao.maps.services.Status.OK) {
+                    var c = new kakao.maps.LatLng(res[0].y, res[0].x);
+                    map.setCenter(c); map.setLevel(4);
+                    updateLocationByCoords(c, q);
+                } else {
+                    ps.keywordSearch(q, function(data, st) {
+                        if (st === kakao.maps.services.Status.OK) {
+                            var c = new kakao.maps.LatLng(data[0].y, data[0].x);
+                            map.setCenter(c); map.setLevel(4);
+                            updateLocationByCoords(c, data[0].place_name);
+                        } else alert('검색 결과가 없습니다.');
+                    });
+                }
+            });
+        });
+
+        document.getElementById('btnSearchCoord').addEventListener('click', function() {
+            var parts = document.getElementById('coordInput').value.trim().split(/[\s,]+/).filter(Boolean);
+            if (parts.length !== 2) return alert('위도, 경도 형식으로 입력하세요.');
+            var lat = parseFloat(parts[0]), lng = parseFloat(parts[1]);
+            if (lat > 100 && lng < 50) { var t = lat; lat = lng; lng = t; }
+            var c = new kakao.maps.LatLng(lat, lng);
+            map.setCenter(c); map.setLevel(4);
+            updateLocationByCoords(c, '좌표 검색');
+        });
+
+        ['filterGu', 'filterOrg', 'filterType'].forEach(function(id) {
+            document.getElementById(id).addEventListener('change', applyFiltersAndRender);
+        });
+        document.getElementById('filterKeyword').addEventListener('keyup', function(e) {
+            if (e.key === 'Enter') applyFiltersAndRender();
+        });
+        document.getElementById('btnResetFilter').addEventListener('click', function() {
+            document.getElementById('filterGu').value = 'ALL';
+            document.getElementById('filterOrg').value = 'ALL';
+            document.getElementById('filterType').value = 'ALL';
+            document.getElementById('filterKeyword').value = '';
+            applyFiltersAndRender();
+        });
+
+        document.getElementById('type-roadmap').addEventListener('click', function() {
+            map.setMapTypeId(kakao.maps.MapTypeId.ROADMAP);
+            this.classList.add('active'); document.getElementById('type-skyview').classList.remove('active');
+        });
+        document.getElementById('type-skyview').addEventListener('click', function() {
+            map.setMapTypeId(kakao.maps.MapTypeId.HYBRID);
+            this.classList.add('active'); document.getElementById('type-roadmap').classList.remove('active');
+        });
+
+        document.getElementById('roadLayerBtn').addEventListener('click', function() {
+            if (isRoadLayerOn) { map.removeOverlayMapTypeId(kakao.maps.MapTypeId.ROADVIEW); this.classList.remove('active'); }
+            else { map.addOverlayMapTypeId(kakao.maps.MapTypeId.ROADVIEW); this.classList.add('active'); }
+            isRoadLayerOn = !isRoadLayerOn;
+        });
+
+        document.getElementById('btn-split').addEventListener('click', function() {
+            document.getElementById('visualArea').className = 'visual-area mode-split';
+            this.classList.add('active'); document.getElementById('btn-map').classList.remove('active');
+            setTimeout(function() { map.relayout(); roadview.relayout(); }, 150);
+        });
+        document.getElementById('btn-map').addEventListener('click', function() {
+            document.getElementById('visualArea').className = 'visual-area mode-map';
+            this.classList.add('active'); document.getElementById('btn-split').classList.remove('active');
+            setTimeout(function() { map.relayout(); }, 150);
+        });
+
+        // 우측 3개 탭 전환
+        ['Info', 'Mod', 'Radius'].forEach(function(name) {
+            document.getElementById('tabBtn' + name).addEventListener('click', function() {
+                ['Info', 'Mod', 'Radius'].forEach(function(n) {
+                    document.getElementById('tabBtn' + n).classList.toggle('active', n === name);
+                    document.getElementById('tabContent' + n).classList.toggle('active', n === name);
+                });
+            });
+        });
+
+        document.getElementById('btnDownloadModified').addEventListener('click', downloadModifiedOnlyCsv);
+        document.getElementById('btnExportModTab').addEventListener('click', downloadModifiedOnlyCsv);
+
+        document.getElementById('btnUploadTargetCsv').addEventListener('click', function() { document.getElementById('targetCsvInput').click(); });
+        document.getElementById('targetCsvInput').addEventListener('change', function(e) { if (e.target.files[0]) handleTargetCsvUpload(e.target.files[0]); });
+        document.getElementById('btnRunRadiusAnalysis').addEventListener('click', runRadiusAnalysis);
+        document.getElementById('btnDownloadRadiusCsv').addEventListener('click', downloadRadiusResultCsv);
+
+        document.querySelectorAll('.copy-btn').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                var txt = document.getElementById(btn.getAttribute('data-target')).innerText;
+                if (txt && txt !== '-') { navigator.clipboard.writeText(txt); showToast('복사됨: ' + txt); }
+            });
+        });
+    }
+
+    window.addEventListener('DOMContentLoaded', function() {
+        bindAllEvents();
+
+        if (typeof kakao === 'undefined' || !kakao.maps) {
+            alert('카카오맵 SDK 로드 실패: JavaScript 키 및 도메인(https://chobojeong.github.io) 등록을 확인하세요.');
+            return;
+        }
+
+        kakao.maps.load(function() {
+            // 초기 지도 중심: 서울시 전역이 한눈에 보이는 줌 레벨 8
+            var seoulCenter = new kakao.maps.LatLng(37.566826, 126.9786567);
+            map = new kakao.maps.Map(document.getElementById('map'), {
+                center: seoulCenter,
+                level: 8
+            });
+
+            map.addControl(new kakao.maps.ZoomControl(), kakao.maps.ControlPosition.RIGHT);
+            map.addOverlayMapTypeId(kakao.maps.MapTypeId.ROADVIEW);
+
+            geocoder = new kakao.maps.services.Geocoder();
+            ps = new kakao.maps.services.Places();
+
+            clickMarker = new kakao.maps.Marker({
+                position: seoulCenter,
+                image: createApMarkerIcon('#2563eb'),
+                map: map
+            });
+            infowindow = new kakao.maps.InfoWindow({ zIndex: 5 });
+
+            roadview = new kakao.maps.Roadview(document.getElementById('roadview'));
+            roadviewClient = new kakao.maps.RoadviewClient();
+            rvMarker = new kakao.maps.Marker({
+                image: createApMarkerIcon('#f59e0b'),
+                position: seoulCenter,
+                map: map
+            });
+
+            // 지도 이동/확대/축소 시 자동 재렌더링 (디바운싱 적용)
+            var idleTimer = null;
+            kakao.maps.event.addListener(map, 'idle', function() {
+                clearTimeout(idleTimer);
+                idleTimer = setTimeout(renderMapByZoomLevel, 150);
+            });
+
+            kakao.maps.event.addListener(map, 'click', function(e) {
+                document.getElementById('infoApName').innerText = '지도 클릭 지점';
+                document.getElementById('infoApMeta').innerText = '-';
+                updateLocationByCoords(e.latLng, '지도 클릭 지점');
+            });
+
+            updateLocationByCoords(seoulCenter, '서울특별시청');
+        });
+    });
+</script>
+
+</body>
+</html>		
