@@ -1,1 +1,40 @@
+name: Update Seoul Public Wi-Fi CSV
 
+on:
+  schedule:
+    # 매일 UTC 19:00 실행 = 한국시간(KST) 매일 새벽 04:00
+    - cron: '0 19 * * *'
+  workflow_dispatch: # GitHub Actions 탭에서 수동 즉시 실행 버튼 활성화
+
+permissions:
+  contents: write
+
+jobs:
+  update-csv:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Fetch Seoul Open API data and generate CSV
+        env:
+          SEOUL_API_KEY: ${{ secrets.SEOUL_API_KEY }}
+        run: python scripts/fetch_seoul_wifi.py
+
+      - name: Commit and push updated CSV if changed
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add seoul_wifi.csv
+          if git diff --staged --quiet; then
+            echo "데이터 변경 사항이 없어 커밋을 건너뜁니다."
+          else
+            git commit -m "chore: update seoul_wifi.csv ($(TZ='Asia/Seoul' date +'%Y-%m-%d %H:%M KST'))"
+            git push
+          fi
