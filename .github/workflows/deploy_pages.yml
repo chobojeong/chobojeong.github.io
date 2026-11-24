@@ -29,12 +29,12 @@ jobs:
             echo "Error: KAKAO_JS_KEY secret is empty."
             exit 1
           fi
-          sed -i "s|__KAKAO_JS_KEY__|${KAKAO_JS_KEY}|g" index.html
+          sed -i "s|__KAKAO_JS_KEY__|${KAKAO_JS_KEY}|g" seoul_wifi_manager.html
 
       - name: Prepare site folder
         run: |
           mkdir -p _site
-          cp index.html _site/
+          cp seoul_wifi_manager.html _site/
           if [ -f seoul_wifi.csv ]; then cp seoul_wifi.csv _site/; fi
 
       - name: Setup Pages
