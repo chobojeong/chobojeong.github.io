@@ -111,17 +111,20 @@
             white-space: nowrap;
         }
         .btn-action:hover { background: #e2e8f0; }
+        .btn-action:disabled { opacity: 0.55; cursor: not-allowed; }
         .btn-action.active { background: #2563eb; color: #ffffff; border-color: #2563eb; }
         .btn-teal { background: #0f766e; color: #ffffff; border-color: #0f766e; }
         .btn-teal:hover { background: #115e59; }
         .btn-green { background: #059669; color: #ffffff; border-color: #059669; }
         .btn-green:hover { background: #047857; }
+        .btn-purple { background: #7c3aed; color: #ffffff; border-color: #7c3aed; }
+        .btn-purple:hover { background: #6d28d9; }
         .btn-red { background: #dc2626; color: #ffffff; border-color: #dc2626; }
         .btn-red:hover { background: #b91c1c; }
-        .btn-red:disabled { background: #94a3b8; border-color: #94a3b8; cursor: not-allowed; }
+        .btn-red:disabled { background: #94a3b8; border-color: #94a3b8; }
         .btn-amber { background: #d97706; color: #ffffff; border-color: #d97706; }
         .btn-amber:hover { background: #b45309; }
-        .btn-amber:disabled { background: #94a3b8; border-color: #94a3b8; cursor: not-allowed; }
+        .btn-amber:disabled { background: #94a3b8; border-color: #94a3b8; }
 
         /* 진행률 배너 */
         #loadingBar {
@@ -219,7 +222,7 @@
 
         /* 우측 사이드 패널 */
         .side-panel {
-            width: 390px;
+            width: 405px;
             background: #ffffff;
             border-left: 1px solid #cbd5e1;
             display: flex;
@@ -301,12 +304,12 @@
         }
         .radius-row {
             display: flex;
-            gap: 6px;
+            gap: 5px;
             align-items: center;
             flex-wrap: wrap;
         }
         .radius-row input[type="number"] {
-            width: 75px;
+            width: 72px;
             height: 28px;
             padding: 0 6px;
             border: 1px solid #93c5fd;
@@ -333,6 +336,7 @@
         }
         .data-card:hover { border-color: #2563eb; background: #eff6ff; }
         .data-card.modified { border-left: 4px solid #dc2626; }
+        .data-card.target-mod { border-left: 4px solid #7c3aed; background: #faf5ff; }
         .card-top {
             display: flex;
             justify-content: space-between;
@@ -398,7 +402,7 @@
 <header>
     <div class="title-area">
         <h1>📡 서울시 공공와이파이 2.6만 AP 관제 · 좌표 보정 · 반경 분석</h1>
-        <p id="dataSourceSubtitle">저장소 최신 데이터(seoul_wifi.csv) 자동 연동 · 자치구 집계 · 마커 드래그 보정 · 반경 AP 추출</p>
+        <p id="dataSourceSubtitle">저장소 최신 데이터(seoul_wifi.csv) 자동 연동 · 자치구 집계 · 마커 드래그 보정 · 반경 통계 추출</p>
     </div>
 
     <div class="top-controls">
@@ -444,11 +448,11 @@
         <button type="button" class="btn-action" id="roadLayerBtn">🛣️ 로드뷰선 OFF</button>
         <button type="button" class="btn-action active" id="btn-map">지도만</button>
         <button type="button" class="btn-action" id="btn-split">지도+로드뷰</button>
-        <button type="button" id="btnUndoLast" class="btn-action btn-amber" disabled title="방금 이동한 마커를 원래 위치로 되돌립니다 (Ctrl+Z)">
+        <button type="button" id="btnUndoLast" class="btn-action btn-amber" disabled title="방금 이동한 AP 마커를 원래 위치로 되돌립니다 (Ctrl+Z)">
             ↩️ 직전 되돌리기
         </button>
         <button type="button" id="btnDownloadModified" class="btn-action btn-red" disabled>
-            💾 수정 내역만 CSV 저장 (<span id="modCountTop">0</span>)
+            💾 AP 수정내역 CSV (<span id="modCountTop">0</span>)
         </button>
     </div>
 </div>
@@ -482,14 +486,14 @@
     <aside class="side-panel">
         <div class="panel-tabs">
             <button type="button" class="panel-tab active" id="tabBtnInfo">📍 선택 AP/지점</button>
-            <button type="button" class="panel-tab" id="tabBtnMod">✏️ 수정 내역 (<span id="modCountTab">0</span>)</button>
+            <button type="button" class="panel-tab" id="tabBtnMod">✏️ AP 수정 (<span id="modCountTab">0</span>)</button>
             <button type="button" class="panel-tab" id="tabBtnRadius">⭕ 반경 AP 분석</button>
         </div>
 
         <!-- 탭 1: 선택 지점 및 AP 상세 정보 -->
         <div class="tab-content active" id="tabContentInfo">
             <div class="info-item">
-                <div class="label"><span>AP명 / 관리번호</span><button type="button" class="copy-btn" data-target="infoApName">복사</button></div>
+                <div class="label"><span>AP명 / 관리번호 (또는 기준점)</span><button type="button" class="copy-btn" data-target="infoApName">복사</button></div>
                 <div class="value" id="infoApName">-</div>
             </div>
             <div class="info-item">
@@ -522,15 +526,15 @@
 
             <div style="font-size:11px; color:#475569; background:#f8fafc; padding:8px; border-radius:5px; border:1px dashed #cbd5e1; line-height:1.5;">
                 💡 <b>사용 팁:</b><br>
-                • 지도를 <b>5레벨 이하로 확대</b>하면 개별 AP 마커가 나타납니다.<br>
-                • 마커를 드래그해 이동한 뒤 실수했다면 <b>[↩️ 직전 되돌리기]</b> 또는 <b>Ctrl+Z</b>로 즉시 원래 위치로 복구할 수 있습니다.
+                • 지도를 <b>5레벨 이하로 확대</b>하면 개별 AP(초록색) 마커가 나타납니다.<br>
+                • 반경 분석 시 생성되는 <b>보라색 기준점 마커</b>도 드래그하면 반경 원과 분석 결과가 즉시 재계산됩니다.
             </div>
         </div>
 
-        <!-- 탭 2: 드래그로 위치 수정된 내역만 별도 관리 -->
+        <!-- 탭 2: 드래그로 위치 수정된 AP 내역 관리 -->
         <div class="tab-content" id="tabContentMod">
             <div style="display:flex; justify-content:space-between; align-items:center; gap:6px;">
-                <span style="font-size:12px; font-weight:bold; color:#0f172a;">좌표 변경 목록</span>
+                <span style="font-size:12px; font-weight:bold; color:#0f172a;">AP 좌표 변경 목록</span>
                 <div style="display:flex; gap:4px;">
                     <button type="button" id="btnRevertAllMod" class="btn-action btn-amber" disabled>↩️ 전체 원복</button>
                     <button type="button" id="btnExportModTab" class="btn-action btn-red" disabled>💾 CSV 저장</button>
@@ -543,7 +547,7 @@
             </div>
         </div>
 
-        <!-- 탭 3: 특정 CSV 업로드 기준 임의 반경 내 AP 공간 검색 -->
+        <!-- 탭 3: 기준 CSV 업로드 + 기준점 드래그 보정 + 반경 내 AP 및 통계 요약 추출 -->
         <div class="tab-content" id="tabContentRadius">
             <div class="radius-box">
                 <div style="font-size:12px; font-weight:bold; color:#1e3a8a;">1. 기준 좌표 CSV 업로드 (장소명, 위도, 경도)</div>
@@ -553,7 +557,14 @@
                     <span id="targetCsvStatus" style="font-size:11px; color:#334155;">선택된 파일 없음</span>
                 </div>
 
-                <div style="font-size:12px; font-weight:bold; color:#1e3a8a; margin-top:4px;">2. 검색 반경(m) 설정 및 실행</div>
+                <!-- 기준점 수정/복구/저장 바 (기준 CSV 업로드 후 활성화) -->
+                <div class="radius-row" id="targetEditControls" style="display:none; background:#f5f3ff; border:1px solid #ddd6fe; padding:6px; border-radius:4px;">
+                    <span style="font-size:11px; color:#5b21b6; flex:1;">🟣 보라색 기준점 드래그 이동 시 반경 자동 재계산</span>
+                    <button type="button" id="btnRevertTargets" class="btn-mini-revert" disabled>↩️ 기준점 원복</button>
+                    <button type="button" id="btnDownloadTargetsCsv" class="copy-btn" style="background:#7c3aed; color:#fff; padding:3px 7px;">💾 보정기준 CSV</button>
+                </div>
+
+                <div style="font-size:12px; font-weight:bold; color:#1e3a8a; margin-top:2px;">2. 검색 반경(m) 설정 및 실행</div>
                 <div class="radius-row">
                     <input type="number" id="radiusMetersInput" value="100" min="10" max="5000" step="10">
                     <span style="font-size:12px; font-weight:bold;">m</span>
@@ -563,16 +574,21 @@
                     <button type="button" id="btnRunRadiusAnalysis" class="btn-action active">🔍 분석 실행</button>
                 </div>
 
-                <div class="radius-row" style="justify-content:space-between; margin-top:4px;">
-                    <span id="radiusResultSummary" style="font-size:12px; font-weight:bold; color:#0f172a;">반경 내 AP: 0대</span>
-                    <button type="button" id="btnDownloadRadiusCsv" class="btn-action btn-green" disabled>📥 반경 결과 CSV</button>
+                <div style="font-size:12px; font-weight:bold; color:#0f172a; margin-top:2px;" id="radiusResultSummary">
+                    반경 내 AP: 0대
+                </div>
+
+                <div class="radius-row" style="justify-content:space-between;">
+                    <button type="button" id="btnDownloadRadiusCsv" class="btn-action btn-green" style="flex:1;" disabled>📥 반경 상세목록 CSV</button>
+                    <button type="button" id="btnDownloadRadiusStatsCsv" class="btn-action btn-purple" style="flex:1;" disabled>📊 자치구·관리주체 통계 CSV</button>
                 </div>
             </div>
 
             <div class="list-container" id="radiusListContainer">
                 <div style="font-size:12px; color:#64748b; text-align:center; padding:24px 10px; line-height:1.6;">
                     대상지 CSV(장소명, 위도, 경도)를 업로드하고 반경(m)을 입력하면,<br>
-                    해당 반경 안에 포함된 서울시 공공와이파이 AP 수량과 상세 목록이 표시됩니다.
+                    반경 내 AP 상세 목록과 <b>자치구·관리주체별 통계 요약 CSV</b>를 추출할 수 있습니다.<br>
+                    (기준 좌표가 틀린 경우 보라색 마커를 드래그하면 즉시 재분석됩니다.)
                 </div>
             </div>
         </div>
@@ -604,7 +620,7 @@
     var activeMarkers = [];
     var radiusCircles = [];
     var targetMarkers = [];
-    var uploadedTargetPoints = [];
+    var uploadedTargetPoints = []; // { idx, name, lat, lng, origLat, origLng, modified }
     var radiusMatchedResults = [];
 
     var MAX_VISIBLE_MARKERS = 450;
@@ -632,7 +648,7 @@
     function setQuickRadius(m) {
         document.getElementById('radiusMetersInput').value = m;
         if (uploadedTargetPoints.length > 0) {
-            runRadiusAnalysis();
+            runRadiusAnalysis(false);
         }
     }
 
@@ -716,7 +732,6 @@
         return true;
     }
 
-    // 동일 HTTPS 도메인(chobojeong.github.io) 내 seoul_wifi.csv 자동 로드
     async function loadDefaultRepoCsv() {
         var loadingBar = document.getElementById('loadingBar');
         loadingBar.style.display = 'flex';
@@ -870,6 +885,11 @@
         }
 
         renderMapByZoomLevel();
+
+        // 이미 반경 분석이 실행된 상태라면 필터 변경 시 반경 결과도 즉시 동기화
+        if (uploadedTargetPoints.length > 0 && radiusCircles.length > 0) {
+            runRadiusAnalysis(false);
+        }
     }
 
     function clearAllMapLayers() {
@@ -892,7 +912,6 @@
             return;
         }
 
-        // [모드 A] 지도 축소 상태 (Level >= 6): 자치구별 '전체 몇 개' 집계 배지 표출
         if (level > DETAIL_ZOOM_LEVEL) {
             viewModeEl.innerHTML = '줌 레벨(' + level + '): <strong>자치구별 수량 집계 모드</strong> (배지 클릭 또는 확대 시 개별 마커)';
 
@@ -941,7 +960,6 @@
             return;
         }
 
-        // [모드 B] 지도 확대 상태 (Level <= 5): 현재 화면 영역(Bounds) 내 개별 드래그 마커 표출
         var bounds = map.getBounds();
         var sw = bounds.getSouthWest();
         var ne = bounds.getNorthEast();
@@ -1004,6 +1022,11 @@
                     updateModifiedCounters();
                     renderModifiedList();
                     showApDetailInfo(apItem, m);
+
+                    // AP 위치 이동 후 반경 분석 상태라면 즉시 재계산
+                    if (uploadedTargetPoints.length > 0 && radiusCircles.length > 0) {
+                        runRadiusAnalysis(false);
+                    }
                 });
 
                 showToast('[' + apItem.name + '] 이동 완료 (실수 시 [↩️ 직전 되돌리기] 또는 Ctrl+Z)');
@@ -1075,6 +1098,9 @@
         updateModifiedCounters();
         renderModifiedList();
         showApDetailInfo(item, item._markerRef);
+        if (uploadedTargetPoints.length > 0 && radiusCircles.length > 0) {
+            runRadiusAnalysis(false);
+        }
         showToast('↩️ [' + item.name + '] 직전 위치로 되돌렸습니다.');
     }
 
@@ -1104,13 +1130,16 @@
         if (currentSelectedAp && currentSelectedAp.idx === idx) {
             showApDetailInfo(item, item._markerRef);
         }
+        if (uploadedTargetPoints.length > 0 && radiusCircles.length > 0) {
+            runRadiusAnalysis(false);
+        }
         showToast('↩️ [' + item.name + '] 원래 좌표로 복구되었습니다.');
     };
 
     function revertAllModifiedAps() {
         var keys = Object.keys(modifiedMap);
         if (keys.length === 0) return;
-        if (!confirm('수정된 ' + keys.length + '개 마커를 모두 원래 좌표로 되돌리시겠습니까?')) return;
+        if (!confirm('수정된 ' + keys.length + '개 AP 마커를 모두 원래 좌표로 되돌리시겠습니까?')) return;
 
         keys.forEach(function(k) {
             var item = modifiedMap[k];
@@ -1133,7 +1162,10 @@
         if (currentSelectedAp) {
             showApDetailInfo(currentSelectedAp, currentSelectedAp._markerRef);
         }
-        showToast('모든 마커가 원래 좌표로 복구되었습니다.');
+        if (uploadedTargetPoints.length > 0 && radiusCircles.length > 0) {
+            runRadiusAnalysis(false);
+        }
+        showToast('모든 AP 마커가 원래 좌표로 복구되었습니다.');
     }
 
     function updateModifiedCounters() {
@@ -1192,19 +1224,16 @@
                 d.mgrNo, d.gu, d.name, d.instlMby, d.instlTy,
                 d.origLat, d.origLng, d.lat, d.lng,
                 d.addr1, d.modRoadAddr, d.modJibunAddr
-            ].map(function(v) {
-                var s = String(v || '');
-                return (s.indexOf(',') !== -1 || s.indexOf('"') !== -1) ? '"' + s.replace(/"/g, '""') + '"' : s;
-            }).join(',');
+            ].map(csvEscape).join(',');
             rows.push(line);
         });
 
-        triggerCsvDownload(rows.join('\r\n'), '서울시공공와이파이_좌표수정내역');
-        showToast('수정된 ' + keys.length + '건의 내역만 별도 CSV로 저장했습니다.');
+        triggerCsvDownload(rows.join('\r\n'), '서울시공공와이파이_AP좌표수정내역');
+        showToast('수정된 ' + keys.length + '건의 AP 내역을 CSV로 저장했습니다.');
     }
 
     // =========================================================================
-    // 6. 특정 CSV 업로드 기반 임의 반경 내 AP 공간 검색
+    // 6. 기준 CSV 업로드 + 기준점 드래그 보정 + 반경 내 AP 및 통계 요약 추출
     // =========================================================================
     function handleTargetCsvUpload(file) {
         if (!file) return;
@@ -1239,17 +1268,68 @@
                 if (isNaN(lat) || isNaN(lng)) continue;
                 if (lat > 100 && lng < 50) { var t = lat; lat = lng; lng = t; }
 
+                lat = parseFloat(lat.toFixed(7));
+                lng = parseFloat(lng.toFixed(7));
+
                 uploadedTargetPoints.push({
+                    idx: uploadedTargetPoints.length,
                     name: cols[nameIdx] || ('기준점 ' + (uploadedTargetPoints.length + 1)),
                     lat: lat,
-                    lng: lng
+                    lng: lng,
+                    origLat: lat,
+                    origLng: lng,
+                    modified: false
                 });
             }
 
             document.getElementById('targetCsvStatus').innerText = file.name + ' (' + uploadedTargetPoints.length + '개 지점)';
-            runRadiusAnalysis();
+            document.getElementById('targetEditControls').style.display = uploadedTargetPoints.length > 0 ? 'flex' : 'none';
+            updateTargetEditButtonState();
+            runRadiusAnalysis(true);
         };
         reader.readAsArrayBuffer(file);
+    }
+
+    function updateTargetEditButtonState() {
+        var modCount = uploadedTargetPoints.filter(function(pt) { return pt.modified; }).length;
+        var revertBtn = document.getElementById('btnRevertTargets');
+        revertBtn.disabled = (modCount === 0);
+        revertBtn.innerText = modCount > 0 ? ('↩️ 기준점 원복 (' + modCount + ')') : '↩️ 기준점 원복';
+    }
+
+    function revertAllTargetPoints() {
+        var modCount = uploadedTargetPoints.filter(function(pt) { return pt.modified; }).length;
+        if (modCount === 0) return;
+        if (!confirm('드래그로 이동한 ' + modCount + '개 기준 좌표를 모두 업로드 당시 원래 좌표로 되돌리시겠습니까?')) return;
+
+        uploadedTargetPoints.forEach(function(pt) {
+            pt.lat = pt.origLat;
+            pt.lng = pt.origLng;
+            pt.modified = false;
+        });
+        updateTargetEditButtonState();
+        runRadiusAnalysis(true);
+        showToast('기준 좌표가 모두 원래 위치로 복구되었습니다.');
+    }
+
+    function downloadCorrectedTargetsCsv() {
+        if (uploadedTargetPoints.length === 0) return;
+        var headers = ['기준장소명', '수정여부', '원본_위도', '원본_경도', '최종_위도', '최종_경도'];
+        var rows = [headers.join(',')];
+
+        uploadedTargetPoints.forEach(function(pt) {
+            rows.push([
+                pt.name,
+                pt.modified ? 'Y' : 'N',
+                pt.origLat,
+                pt.origLng,
+                pt.lat,
+                pt.lng
+            ].map(csvEscape).join(','));
+        });
+
+        triggerCsvDownload(rows.join('\r\n'), '보정된_기준좌표목록');
+        showToast('기준 좌표 CSV를 저장했습니다.');
     }
 
     function getDistanceMeters(lat1, lng1, lat2, lng2) {
@@ -1262,7 +1342,7 @@
         return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     }
 
-    function runRadiusAnalysis() {
+    function runRadiusAnalysis(fitBoundsToTargets) {
         if (allWifiData.length === 0) {
             alert('먼저 서울시 공공와이파이 데이터가 적재되어야 합니다.');
             return;
@@ -1284,28 +1364,54 @@
         var latDelta = (radiusM / 111320) * 1.2;
         var lngDelta = (radiusM / 88800) * 1.2;
         var searchPool = filteredWifiData.length > 0 ? filteredWifiData : allWifiData;
-        var targetIcon = createApMarkerIcon('#7c3aed');
+        var purpleIcon = createApMarkerIcon('#7c3aed');
+        var magentaIcon = createApMarkerIcon('#db2777'); // 드래그 수정된 기준점 색상
 
         uploadedTargetPoints.forEach(function(pt) {
             var centerPos = new kakao.maps.LatLng(pt.lat, pt.lng);
             bounds.extend(centerPos);
 
+            // 보라색 기준점 마커 (드래그 수정 가능)
             var tm = new kakao.maps.Marker({
                 position: centerPos,
                 map: map,
-                title: '[기준점] ' + pt.name,
-                image: targetIcon
+                draggable: true,
+                zIndex: 6,
+                title: '[기준점 - 드래그 이동 가능] ' + pt.name,
+                image: pt.modified ? magentaIcon : purpleIcon
             });
+
+            kakao.maps.event.addListener(tm, 'click', function() {
+                currentSelectedAp = null;
+                document.getElementById('selectedRevertBox').style.display = 'none';
+                document.getElementById('infoApName').innerText = '[기준점] ' + pt.name + (pt.modified ? ' (좌표보정됨)' : '');
+                document.getElementById('infoApMeta').innerText = '반경 ' + radiusM + 'm 분석 기준 좌표 (드래그 이동 가능)';
+                updateLocationByCoords(new kakao.maps.LatLng(pt.lat, pt.lng), '[기준점] ' + pt.name, tm);
+            });
+
+            // 기준점 마커 드래그 종료 시 좌표 반영 및 반경 재계산
+            kakao.maps.event.addListener(tm, 'dragend', function() {
+                var newPos = tm.getPosition();
+                pt.lat = parseFloat(newPos.getLat().toFixed(7));
+                pt.lng = parseFloat(newPos.getLng().toFixed(7));
+                pt.modified = (pt.lat !== pt.origLat || pt.lng !== pt.origLng);
+
+                updateTargetEditButtonState();
+                // 현재 지도 시점을 유지한 채 반경 원과 AP 매칭 결과만 즉시 재계산
+                runRadiusAnalysis(false);
+                showToast('📍 기준점 [' + pt.name + '] 이동 완료 — 반경 내 AP가 재계산되었습니다.');
+            });
+
             targetMarkers.push(tm);
 
             var circle = new kakao.maps.Circle({
                 center: centerPos,
                 radius: radiusM,
                 strokeWeight: 2,
-                strokeColor: '#7c3aed',
+                strokeColor: pt.modified ? '#db2777' : '#7c3aed',
                 strokeOpacity: 0.85,
                 strokeStyle: 'solid',
-                fillColor: '#8b5cf6',
+                fillColor: pt.modified ? '#ec4899' : '#8b5cf6',
                 fillOpacity: 0.18
             });
             circle.setMap(map);
@@ -1321,6 +1427,7 @@
                         targetName: pt.name,
                         targetLat: pt.lat,
                         targetLng: pt.lng,
+                        targetModified: pt.modified ? 'Y' : 'N',
                         distanceM: Math.round(dist * 10) / 10,
                         ap: ap
                     });
@@ -1330,56 +1437,140 @@
 
         radiusMatchedResults.sort(function(a, b) { return a.distanceM - b.distanceM; });
 
+        var hasResults = radiusMatchedResults.length > 0;
         document.getElementById('radiusResultSummary').innerText =
             '기준 ' + uploadedTargetPoints.length + '곳 반경 ' + radiusM + 'm 내 AP: 총 ' + radiusMatchedResults.length + '대';
-        document.getElementById('btnDownloadRadiusCsv').disabled = (radiusMatchedResults.length === 0);
+        document.getElementById('btnDownloadRadiusCsv').disabled = !hasResults;
+        document.getElementById('btnDownloadRadiusStatsCsv').disabled = !hasResults;
 
         renderRadiusResultList();
 
-        if (uploadedTargetPoints.length > 0) {
+        if (fitBoundsToTargets && uploadedTargetPoints.length > 0) {
             map.setBounds(bounds);
             if (map.getLevel() > 4) map.setLevel(4);
         }
-        showToast('반경 ' + radiusM + 'm 내 AP ' + radiusMatchedResults.length + '대가 검색되었습니다.');
     }
 
     function renderRadiusResultList() {
         var container = document.getElementById('radiusListContainer');
         if (radiusMatchedResults.length === 0) {
-            container.innerHTML = '<div style="font-size:12px; color:#64748b; text-align:center; padding:24px;">지정한 반경 내에 위치한 AP가 없습니다.</div>';
+            container.innerHTML = '<div style="font-size:12px; color:#64748b; text-align:center; padding:24px;">지정한 반경 내에 위치한 AP가 없습니다.<br>(기준 좌표가 어긋났다면 보라색 마커를 드래그해 이동해 보세요.)</div>';
             return;
         }
 
         var html = '';
         radiusMatchedResults.slice(0, 300).forEach(function(r) {
-            html += '<div class="data-card" onclick="focusOnAp(' + r.ap.idx + ')">' +
+            var cardClass = r.targetModified === 'Y' ? 'data-card target-mod' : 'data-card';
+            html += '<div class="' + cardClass + '" onclick="focusOnAp(' + r.ap.idx + ')">' +
                 '<div class="card-top"><span>' + r.ap.name + '</span><span style="color:#7c3aed;">거리 ' + r.distanceM + 'm</span></div>' +
-                '<div class="card-sub">기준지: <b>' + r.targetName + '</b> | ' + r.ap.gu + ' · ' + r.ap.instlMby + '</div>' +
+                '<div class="card-sub">기준지: <b>' + r.targetName + '</b>' + (r.targetModified === 'Y' ? ' <span style="color:#db2777;">[기준점보정]</span>' : '') + ' | ' + r.ap.gu + ' · ' + r.ap.instlMby + '</div>' +
                 '<div class="card-sub">주소: ' + r.ap.addr1 + '</div>' +
                 '</div>';
         });
         container.innerHTML = html;
     }
 
+    // [다운로드 1] 반경 내 AP 상세 목록 CSV
     function downloadRadiusResultCsv() {
         if (radiusMatchedResults.length === 0) return;
         var radiusM = document.getElementById('radiusMetersInput').value;
-        var headers = ['기준장소명', '기준_위도', '기준_경도', '검색반경(m)', '이격거리(m)', '관리번호', '자치구', 'AP명', '관리주체', '설치유형', 'AP_위도', 'AP_경도', '설치주소'];
+        var headers = ['기준장소명', '기준좌표_보정여부', '기준_위도', '기준_경도', '검색반경(m)', '이격거리(m)', '관리번호', '자치구', 'AP명', '관리주체', '설치유형', 'AP_위도', 'AP_경도', '설치주소'];
         var rows = [headers.join(',')];
 
         radiusMatchedResults.forEach(function(r) {
             var line = [
-                r.targetName, r.targetLat, r.targetLng, radiusM, r.distanceM,
+                r.targetName, r.targetModified, r.targetLat, r.targetLng, radiusM, r.distanceM,
                 r.ap.mgrNo, r.ap.gu, r.ap.name, r.ap.instlMby, r.ap.instlTy,
                 r.ap.lat, r.ap.lng, r.ap.addr1
-            ].map(function(v) {
-                var s = String(v || '');
-                return (s.indexOf(',') !== -1 || s.indexOf('"') !== -1) ? '"' + s.replace(/"/g, '""') + '"' : s;
-            }).join(',');
+            ].map(csvEscape).join(',');
             rows.push(line);
         });
 
-        triggerCsvDownload(rows.join('\r\n'), '반경' + radiusM + 'm_내_AP목록');
+        triggerCsvDownload(rows.join('\r\n'), '반경' + radiusM + 'm_내_AP상세목록');
+    }
+
+    // [다운로드 2] 반경 분석 자치구·관리주체별 통계 요약 CSV
+    function downloadRadiusStatsCsv() {
+        if (radiusMatchedResults.length === 0) return;
+        var radiusM = document.getElementById('radiusMetersInput').value;
+        var rows = [];
+
+        // 섹션 1: 전체 요약 (자치구 x 관리주체별 AP 수량 및 중복 제거 고유 AP 수)
+        rows.push('[1. 전체 자치구 · 관리주체별 통계 요약 (검색반경: ' + radiusM + 'm)]');
+        rows.push(['자치구', '관리주체', '반경내_매칭건수', '고유AP수(중복제거)', '구성비(%)'].join(','));
+
+        var guOrgAgg = {};
+        var totalMatches = radiusMatchedResults.length;
+
+        radiusMatchedResults.forEach(function(r) {
+            var key = r.ap.gu + '||' + r.ap.instlMby;
+            if (!guOrgAgg[key]) {
+                guOrgAgg[key] = { gu: r.ap.gu, org: r.ap.instlMby, count: 0, uniqueIdxSet: new Set() };
+            }
+            guOrgAgg[key].count++;
+            guOrgAgg[key].uniqueIdxSet.add(r.ap.idx);
+        });
+
+        var sortedGuOrg = Object.values(guOrgAgg).sort(function(a, b) {
+            if (a.gu !== b.gu) return a.gu.localeCompare(b.gu, 'ko');
+            return b.count - a.count;
+        });
+
+        var totalUniqueSet = new Set();
+        sortedGuOrg.forEach(function(item) {
+            item.uniqueIdxSet.forEach(function(id) { totalUniqueSet.add(id); });
+            var ratio = ((item.count / totalMatches) * 100).toFixed(1);
+            rows.push([
+                item.gu,
+                item.org,
+                item.count,
+                item.uniqueIdxSet.size,
+                ratio + '%'
+            ].map(csvEscape).join(','));
+        });
+
+        rows.push(['합계', '전체', totalMatches, totalUniqueSet.size, '100.0%'].map(csvEscape).join(','));
+        rows.push('');
+
+        // 섹션 2: 기준 장소별 · 자치구 · 관리주체별 세부 집계
+        rows.push('[2. 기준 장소별 · 자치구 · 관리주체별 상세 집계]');
+        rows.push(['기준장소명', '기준좌표_보정여부', '기준_위도', '기준_경도', '자치구', '관리주체', '반경내_AP수'].join(','));
+
+        var targetAgg = {};
+        // 0건인 기준장소도 누락 없이 표출하기 위해 uploadedTargetPoints 순회
+        uploadedTargetPoints.forEach(function(pt) {
+            var matchedForPt = radiusMatchedResults.filter(function(r) {
+                return r.targetName === pt.name && r.targetLat === pt.lat && r.targetLng === pt.lng;
+            });
+
+            if (matchedForPt.length === 0) {
+                rows.push([
+                    pt.name, pt.modified ? 'Y' : 'N', pt.lat, pt.lng, '-', '-', 0
+                ].map(csvEscape).join(','));
+            } else {
+                var subMap = {};
+                matchedForPt.forEach(function(m) {
+                    var k = m.ap.gu + '||' + m.ap.instlMby;
+                    if (!subMap[k]) subMap[k] = { gu: m.ap.gu, org: m.ap.instlMby, cnt: 0 };
+                    subMap[k].cnt++;
+                });
+                Object.values(subMap).sort(function(a, b) { return b.cnt - a.cnt; }).forEach(function(s) {
+                    rows.push([
+                        pt.name, pt.modified ? 'Y' : 'N', pt.lat, pt.lng, s.gu, s.org, s.cnt
+                    ].map(csvEscape).join(','));
+                });
+            }
+        });
+
+        triggerCsvDownload(rows.join('\r\n'), '반경' + radiusM + 'm_자치구_관리주체_통계요약');
+        showToast('자치구·관리주체별 통계 요약 CSV를 저장했습니다.');
+    }
+
+    function csvEscape(v) {
+        var s = String(v === undefined || v === null ? '' : v);
+        return (s.indexOf(',') !== -1 || s.indexOf('"') !== -1 || s.indexOf('\n') !== -1)
+            ? '"' + s.replace(/"/g, '""') + '"'
+            : s;
     }
 
     function triggerCsvDownload(csvBody, prefix) {
@@ -1580,8 +1771,11 @@
 
         document.getElementById('btnUploadTargetCsv').addEventListener('click', function() { document.getElementById('targetCsvInput').click(); });
         document.getElementById('targetCsvInput').addEventListener('change', function(e) { if (e.target.files[0]) handleTargetCsvUpload(e.target.files[0]); });
-        document.getElementById('btnRunRadiusAnalysis').addEventListener('click', runRadiusAnalysis);
+        document.getElementById('btnRevertTargets').addEventListener('click', revertAllTargetPoints);
+        document.getElementById('btnDownloadTargetsCsv').addEventListener('click', downloadCorrectedTargetsCsv);
+        document.getElementById('btnRunRadiusAnalysis').addEventListener('click', function() { runRadiusAnalysis(true); });
         document.getElementById('btnDownloadRadiusCsv').addEventListener('click', downloadRadiusResultCsv);
+        document.getElementById('btnDownloadRadiusStatsCsv').addEventListener('click', downloadRadiusStatsCsv);
 
         document.querySelectorAll('.copy-btn').forEach(function(btn) {
             btn.addEventListener('click', function() {
@@ -1641,8 +1835,6 @@
             });
 
             updateLocationByCoords(seoulCenter, '서울특별시청');
-
-            // 지도 초기화 완료 후 저장소의 seoul_wifi.csv 자동 로드
             loadDefaultRepoCsv();
         });
     });
