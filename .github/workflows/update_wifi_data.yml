@@ -2,9 +2,8 @@ name: Update Seoul Public Wi-Fi CSV
 
 on:
   schedule:
-    # 매일 UTC 19:00 실행 = 한국시간(KST) 매일 새벽 04:00
     - cron: '0 19 * * *'
-  workflow_dispatch: # GitHub Actions 탭에서 수동 즉시 실행 버튼 활성화
+  workflow_dispatch:
 
 permissions:
   contents: write
