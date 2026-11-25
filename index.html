@@ -14,7 +14,7 @@
             background-color: #ffffff;
             padding: 8px 16px;
             border-bottom: 1px solid #cbd5e1;
-            z-index: 20;
+            z-index: 30;
             display: flex;
             flex-wrap: wrap;
             gap: 8px;
@@ -49,7 +49,7 @@
             align-items: center;
             white-space: nowrap;
         }
-        .input-group input, .input-group select {
+        .input-group input {
             border: none;
             background: transparent;
             padding: 0 8px;
@@ -70,7 +70,7 @@
         }
         .input-group button:hover { background-color: #1d4ed8; }
 
-        /* 상단 2단: 카테고리 필터 및 지도/뷰 컨트롤바 */
+        /* 상단 2단: 다중 선택 필터 및 지도/뷰 컨트롤바 */
         .filter-bar {
             background-color: #f8fafc;
             padding: 7px 16px;
@@ -80,7 +80,7 @@
             gap: 8px;
             align-items: center;
             justify-content: space-between;
-            z-index: 15;
+            z-index: 25;
         }
         .filter-group {
             display: flex;
@@ -88,7 +88,102 @@
             gap: 6px;
             align-items: center;
         }
-        .filter-select {
+
+        /* 다중 선택 커스텀 드롭다운 */
+        .multi-select-wrap {
+            position: relative;
+            display: inline-block;
+        }
+        .multi-select-btn {
+            height: 30px;
+            padding: 0 10px;
+            border: 1px solid #cbd5e1;
+            border-radius: 5px;
+            font-size: 12px;
+            background: #ffffff;
+            color: #1e293b;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            min-width: 145px;
+            max-width: 195px;
+            justify-content: space-between;
+            white-space: nowrap;
+        }
+        .multi-select-btn.has-selection {
+            border-color: #2563eb;
+            background: #eff6ff;
+            color: #1d4ed8;
+            font-weight: bold;
+        }
+        .multi-select-btn .btn-label {
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .multi-select-panel {
+            display: none;
+            position: absolute;
+            top: 34px;
+            left: 0;
+            width: 240px;
+            max-height: 310px;
+            background: #ffffff;
+            border: 1px solid #94a3b8;
+            border-radius: 6px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.18);
+            z-index: 100;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .multi-select-panel.open { display: flex; }
+        .ms-header {
+            padding: 7px 10px;
+            background: #f1f5f9;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 11px;
+        }
+        .ms-header button {
+            background: #e2e8f0;
+            border: none;
+            border-radius: 4px;
+            padding: 3px 7px;
+            font-size: 11px;
+            font-weight: bold;
+            cursor: pointer;
+            color: #334155;
+        }
+        .ms-header button:hover { background: #cbd5e1; }
+        .ms-list {
+            overflow-y: auto;
+            padding: 4px 0;
+            max-height: 260px;
+        }
+        .ms-item {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            padding: 5px 10px;
+            font-size: 12px;
+            color: #1e293b;
+            cursor: pointer;
+            user-select: none;
+        }
+        .ms-item:hover { background: #eff6ff; }
+        .ms-item input[type="checkbox"] { cursor: pointer; accent-color: #2563eb; }
+        .ms-color-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            display: inline-block;
+            flex-shrink: 0;
+            border: 1px solid rgba(0,0,0,0.2);
+        }
+
+        .filter-input {
             height: 30px;
             padding: 0 8px;
             border: 1px solid #cbd5e1;
@@ -96,7 +191,7 @@
             font-size: 12px;
             background: #ffffff;
             color: #1e293b;
-            max-width: 170px;
+            width: 145px;
         }
         .btn-action {
             height: 30px;
@@ -196,28 +291,76 @@
         }
         .map-status-overlay strong { color: #2563eb; }
 
-        /* 자치구 집계 배지 스타일 */
-        .gu-cluster-badge {
-            background: rgba(30, 58, 138, 0.92);
-            color: #ffffff;
-            border: 2px solid #ffffff;
-            border-radius: 20px;
-            padding: 6px 12px;
-            font-size: 12px;
+        /* 지도 좌측 하단 관리주체별 색상 범례 */
+        .map-legend-box {
+            position: absolute;
+            bottom: 16px;
+            left: 12px;
+            z-index: 10;
+            background: rgba(255, 255, 255, 0.95);
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            padding: 8px 11px;
+            font-size: 11px;
+            color: #1e293b;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.14);
+            max-width: 280px;
+            max-height: 210px;
+            overflow-y: auto;
+        }
+        .map-legend-title {
             font-weight: bold;
-            box-shadow: 0 3px 8px rgba(0,0,0,0.3);
-            cursor: pointer;
+            color: #0f172a;
+            margin-bottom: 5px;
+            padding-bottom: 4px;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .legend-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px 10px;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
             white-space: nowrap;
+        }
+
+        /* 자치구 수량 비례 원형 버블 스타일 */
+        .gu-circle-bubble {
+            border-radius: 50%;
+            background: radial-gradient(circle at 32% 30%, rgba(59, 130, 246, 0.92), rgba(30, 58, 138, 0.94));
+            border: 2.5px solid #ffffff;
+            box-shadow: 0 4px 12px rgba(15, 23, 42, 0.35);
+            color: #ffffff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
             text-align: center;
-            transition: transform 0.15s, background 0.15s;
+            cursor: pointer;
+            user-select: none;
+            transition: transform 0.16s ease, background 0.16s ease;
+            line-height: 1.2;
+            padding: 4px;
         }
-        .gu-cluster-badge:hover {
-            transform: scale(1.08);
-            background: #2563eb;
+        .gu-circle-bubble:hover {
+            transform: scale(1.1);
+            background: radial-gradient(circle at 32% 30%, rgba(37, 99, 235, 0.98), rgba(29, 78, 216, 0.98));
+            z-index: 50;
         }
-        .gu-cluster-badge span {
+        .gu-circle-bubble .gu-name {
+            font-weight: 800;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.45);
+        }
+        .gu-circle-bubble .gu-cnt {
             color: #fde047;
-            margin-left: 4px;
+            font-weight: bold;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.45);
         }
 
         /* 우측 사이드 패널 */
@@ -402,7 +545,7 @@
 <header>
     <div class="title-area">
         <h1>📡 서울시 공공와이파이 2.6만 AP 관제 · 좌표 보정 · 반경 분석</h1>
-        <p id="dataSourceSubtitle">저장소 최신 데이터(seoul_wifi.csv) 자동 연동 · 자치구 집계 · 마커 드래그 보정 · 반경 통계 추출</p>
+        <p id="dataSourceSubtitle">저장소 최신 데이터(seoul_wifi.csv) 자동 연동 · 다중 필터 · 수량 비례 원 집계 · 반경 통계 추출</p>
     </div>
 
     <div class="top-controls">
@@ -413,32 +556,75 @@
 
         <div class="input-group">
             <label for="addressInput">주소/장소</label>
-            <input type="text" id="addressInput" style="width:155px;" placeholder="예: 서울시청, 강남역">
+            <input type="text" id="addressInput" style="width:150px;" placeholder="예: 서울시청, 강남역">
             <button type="button" id="btnSearchAddr">검색</button>
         </div>
 
         <div class="input-group">
             <label for="coordInput">좌표</label>
-            <input type="text" id="coordInput" style="width:155px;" placeholder="37.5665, 126.9780">
+            <input type="text" id="coordInput" style="width:150px;" placeholder="37.5665, 126.9780">
             <button type="button" id="btnSearchCoord">이동</button>
         </div>
     </div>
 </header>
 
-<!-- 상단 2단: 다중 카테고리 필터 + 지도/뷰 모드 + 수정본 저장 -->
+<!-- 상단 2단: 복수 선택 카테고리 필터 + 지도/뷰 모드 + 수정본 저장 -->
 <div class="filter-bar">
     <div class="filter-group">
-        <strong style="font-size:12px; color:#334155;">필터:</strong>
-        <select id="filterGu" class="filter-select" title="자치구 선택">
-            <option value="ALL">전체 자치구 (25개구)</option>
-        </select>
-        <select id="filterOrg" class="filter-select" title="관리주체(기관) 선택">
-            <option value="ALL">전체 관리주체</option>
-        </select>
-        <select id="filterType" class="filter-select" title="설치유형 선택">
-            <option value="ALL">전체 설치유형</option>
-        </select>
-        <input type="text" id="filterKeyword" class="filter-select" style="width:140px;" placeholder="AP명/관리번호 검색">
+        <strong style="font-size:12px; color:#334155;">다중필터:</strong>
+
+        <!-- 자치구 복수 선택 드롭다운 -->
+        <div class="multi-select-wrap" id="msWrapGu">
+            <button type="button" class="multi-select-btn" id="msBtnGu">
+                <span class="btn-label">전체 자치구</span><span>▾</span>
+            </button>
+            <div class="multi-select-panel" id="msPanelGu">
+                <div class="ms-header">
+                    <strong>자치구 복수선택</strong>
+                    <div>
+                        <button type="button" onclick="toggleAllMultiSelect('gu', true)">전체</button>
+                        <button type="button" onclick="toggleAllMultiSelect('gu', false)">해제</button>
+                    </div>
+                </div>
+                <div class="ms-list" id="msListGu"></div>
+            </div>
+        </div>
+
+        <!-- 관리주체 복수 선택 드롭다운 -->
+        <div class="multi-select-wrap" id="msWrapOrg">
+            <button type="button" class="multi-select-btn" id="msBtnOrg">
+                <span class="btn-label">전체 관리주체</span><span>▾</span>
+            </button>
+            <div class="multi-select-panel" id="msPanelOrg">
+                <div class="ms-header">
+                    <strong>관리주체 복수선택</strong>
+                    <div>
+                        <button type="button" onclick="toggleAllMultiSelect('org', true)">전체</button>
+                        <button type="button" onclick="toggleAllMultiSelect('org', false)">해제</button>
+                    </div>
+                </div>
+                <div class="ms-list" id="msListOrg"></div>
+            </div>
+        </div>
+
+        <!-- 설치유형 복수 선택 드롭다운 -->
+        <div class="multi-select-wrap" id="msWrapType">
+            <button type="button" class="multi-select-btn" id="msBtnType">
+                <span class="btn-label">전체 설치유형</span><span>▾</span>
+            </button>
+            <div class="multi-select-panel" id="msPanelType">
+                <div class="ms-header">
+                    <strong>설치유형 복수선택</strong>
+                    <div>
+                        <button type="button" onclick="toggleAllMultiSelect('type', true)">전체</button>
+                        <button type="button" onclick="toggleAllMultiSelect('type', false)">해제</button>
+                    </div>
+                </div>
+                <div class="ms-list" id="msListType"></div>
+            </div>
+        </div>
+
+        <input type="text" id="filterKeyword" class="filter-input" placeholder="AP명/관리번호 검색">
         <button type="button" id="btnResetFilter" class="btn-action">초기화</button>
     </div>
 
@@ -470,7 +656,15 @@
             <div id="map"></div>
             <div class="map-status-overlay" id="mapStatusOverlay">
                 <div>적재 데이터: <strong id="statTotal">0</strong>건 / 필터 결과: <strong id="statFiltered">0</strong>건</div>
-                <div id="statViewMode">지도 줌 레벨: <strong>광역 집계 모드</strong> (확대 시 개별 마커 표시)</div>
+                <div id="statViewMode">지도 줌 레벨: <strong>자치구 수량 비례 원 모드</strong> (확대 시 개별 마커 표시)</div>
+            </div>
+            <!-- 관리주체별 아이콘 색상 범례 -->
+            <div class="map-legend-box" id="orgLegendBox" style="display:none;">
+                <div class="map-legend-title">
+                    <span>🎨 관리주체별 마커 색상</span>
+                    <span style="font-weight:normal; color:#64748b; font-size:10px;">(수정됨: 빨강 테두리)</span>
+                </div>
+                <div class="legend-grid" id="orgLegendGrid"></div>
             </div>
         </div>
         <div id="rv-wrapper">
@@ -526,8 +720,8 @@
 
             <div style="font-size:11px; color:#475569; background:#f8fafc; padding:8px; border-radius:5px; border:1px dashed #cbd5e1; line-height:1.5;">
                 💡 <b>사용 팁:</b><br>
-                • 지도를 <b>5레벨 이하로 확대</b>하면 개별 AP(초록색) 마커가 나타납니다.<br>
-                • 반경 분석 시 생성되는 <b>보라색 기준점 마커</b>도 드래그하면 반경 원과 분석 결과가 즉시 재계산됩니다.
+                • 광역 화면에서는 <b>수량에 비례하는 원</b>으로 구별 현황이 표시됩니다.<br>
+                • 지도를 <b>5레벨 이하로 확대</b>하면 <b>관리주체별 고유 색상 마커</b>가 나타나며, 드래그로 위치를 보정할 수 있습니다.
             </div>
         </div>
 
@@ -557,7 +751,6 @@
                     <span id="targetCsvStatus" style="font-size:11px; color:#334155;">선택된 파일 없음</span>
                 </div>
 
-                <!-- 기준점 수정/복구/저장 바 (기준 CSV 업로드 후 활성화) -->
                 <div class="radius-row" id="targetEditControls" style="display:none; background:#f5f3ff; border:1px solid #ddd6fe; padding:6px; border-radius:4px;">
                     <span style="font-size:11px; color:#5b21b6; flex:1;">🟣 보라색 기준점 드래그 이동 시 반경 자동 재계산</span>
                     <button type="button" id="btnRevertTargets" class="btn-mini-revert" disabled>↩️ 기준점 원복</button>
@@ -587,8 +780,7 @@
             <div class="list-container" id="radiusListContainer">
                 <div style="font-size:12px; color:#64748b; text-align:center; padding:24px 10px; line-height:1.6;">
                     대상지 CSV(장소명, 위도, 경도)를 업로드하고 반경(m)을 입력하면,<br>
-                    반경 내 AP 상세 목록과 <b>자치구·관리주체별 통계 요약 CSV</b>를 추출할 수 있습니다.<br>
-                    (기준 좌표가 틀린 경우 보라색 마커를 드래그하면 즉시 재분석됩니다.)
+                    반경 내 AP 상세 목록과 <b>자치구·관리주체별 통계 요약 CSV</b>를 추출할 수 있습니다.
                 </div>
             </div>
         </div>
@@ -597,11 +789,11 @@
 
 <div id="toast">알림 메시지</div>
 
-<!-- 반드시 YOUR_KAKAO_JAVASCRIPT_KEY를 실제 JavaScript 키로 교체하세요 -->
 <script type="text/javascript" src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=__KAKAO_JS_KEY__&libraries=services&autoload=false"></script>
+
 <script>
     // =========================================================================
-    // 1. 전역 상태 변수 및 서울시 25개 자치구 중심 좌표
+    // 1. 전역 상태 변수, 다중 필터 상태 및 관리주체별 색상 팔레트
     // =========================================================================
     var map = null, geocoder = null, ps = null, clickMarker = null, infowindow = null;
     var roadview = null, roadviewClient = null, rvMarker = null;
@@ -615,11 +807,36 @@
     var moveHistoryStack = [];
     var currentSelectedAp = null;
 
+    // 복수 선택 필터 상태 (Set: 비어있으면 '전체'로 간주)
+    var multiFilterState = {
+        gu: new Set(),
+        org: new Set(),
+        type: new Set()
+    };
+
+    // 관리주체별 고유 색상 매핑 테이블 & 아이콘 캐시
+    var orgColorMap = {};
+    var markerIconCache = {};
+    var ORG_COLOR_PALETTE = [
+        '#059669', // 에메랄드 그린 (서울시 등 기본)
+        '#2563eb', // 로열 블루
+        '#d97706', // 앰버 오렌지
+        '#0891b2', // 시안 블루
+        '#7c3aed', // 바이올렛
+        '#db2777', // 마젠타 핑크
+        '#4f46e5', // 인디고
+        '#65a30d', // 라임 그린
+        '#ea580c', // 딥 오렌지
+        '#0d9488', // 틸
+        '#9333ea', // 퍼플
+        '#ca8a04'  // 골드
+    ];
+
     var guOverlays = [];
     var activeMarkers = [];
     var radiusCircles = [];
     var targetMarkers = [];
-    var uploadedTargetPoints = []; // { idx, name, lat, lng, origLat, origLng, modified }
+    var uploadedTargetPoints = [];
     var radiusMatchedResults = [];
 
     var MAX_VISIBLE_MARKERS = 450;
@@ -779,8 +996,51 @@
     }
 
     // =========================================================================
-    // 3. 데이터 정규화 및 카테고리 필터 옵션 자동 생성
+    // 3. 데이터 정규화, 관리주체별 색상 배정 및 다중 선택 필터 UI 구성
     // =========================================================================
+    function assignOrgColors(sortedOrgs) {
+        orgColorMap = {};
+        markerIconCache = {};
+        sortedOrgs.forEach(function(orgName, index) {
+            // 주요 기관명 직관적 색상 우선 매핑, 나머지는 팔레트 순환 배정
+            if (/서울시|서울특별시/.test(orgName)) {
+                orgColorMap[orgName] = '#059669'; // 초록
+            } else if (/자치구|구청/.test(orgName)) {
+                orgColorMap[orgName] = '#2563eb'; // 파랑
+            } else if (/KT|케이티/i.test(orgName)) {
+                orgColorMap[orgName] = '#0891b2'; // 청록
+            } else if (/SK|에스케이/i.test(orgName)) {
+                orgColorMap[orgName] = '#ea580c'; // 주황
+            } else if (/LG|엘지/i.test(orgName)) {
+                orgColorMap[orgName] = '#db2777'; // 핑크
+            } else if (/교통공사|메트로|철도/.test(orgName)) {
+                orgColorMap[orgName] = '#7c3aed'; // 보라
+            } else {
+                orgColorMap[orgName] = ORG_COLOR_PALETTE[index % ORG_COLOR_PALETTE.length];
+            }
+        });
+        renderOrgLegend(sortedOrgs);
+    }
+
+    function renderOrgLegend(orgList) {
+        var box = document.getElementById('orgLegendBox');
+        var grid = document.getElementById('orgLegendGrid');
+        if (!orgList || orgList.length === 0) {
+            box.style.display = 'none';
+            return;
+        }
+        box.style.display = 'block';
+        var html = '';
+        orgList.forEach(function(org) {
+            var color = orgColorMap[org] || '#059669';
+            html += '<div class="legend-item">' +
+                '<span class="ms-color-dot" style="background:' + color + ';"></span>' +
+                '<span>' + org + '</span>' +
+                '</div>';
+        });
+        grid.innerHTML = html;
+    }
+
     function ingestWifiRecords(rawRows) {
         allWifiData = [];
         modifiedMap = {};
@@ -790,9 +1050,13 @@
         updateModifiedCounters();
         renderModifiedList();
 
-        var guSet = new Set();
-        var orgSet = new Set();
-        var typeSet = new Set();
+        multiFilterState.gu.clear();
+        multiFilterState.org.clear();
+        multiFilterState.type.clear();
+
+        var guCountMap = {};
+        var orgCountMap = {};
+        var typeCountMap = {};
 
         for (var i = 0; i < rawRows.length; i++) {
             var r = rawRows[i];
@@ -811,9 +1075,9 @@
             var org = (r.X_SWIFI_INSTL_MBY || '').trim() || '미분류';
             var ty = (r.X_SWIFI_INSTL_TY || '').trim() || '미분류';
 
-            guSet.add(gu);
-            orgSet.add(org);
-            typeSet.add(ty);
+            guCountMap[gu] = (guCountMap[gu] || 0) + 1;
+            orgCountMap[org] = (orgCountMap[org] || 0) + 1;
+            typeCountMap[ty] = (typeCountMap[ty] || 0) + 1;
 
             allWifiData.push({
                 idx: allWifiData.length,
@@ -836,38 +1100,123 @@
             });
         }
 
-        populateSelectOptions('filterGu', Array.from(guSet).sort(), '전체 자치구 (' + guSet.size + '개)');
-        populateSelectOptions('filterOrg', Array.from(orgSet).sort(), '전체 관리주체 (' + orgSet.size + '개)');
-        populateSelectOptions('filterType', Array.from(typeSet).sort(), '전체 설치유형 (' + typeSet.size + '개)');
+        var sortedGus = Object.keys(guCountMap).sort(function(a, b) { return a.localeCompare(b, 'ko'); });
+        var sortedOrgs = Object.keys(orgCountMap).sort(function(a, b) { return orgCountMap[b] - orgCountMap[a]; });
+        var sortedTypes = Object.keys(typeCountMap).sort(function(a, b) { return typeCountMap[b] - typeCountMap[a]; });
+
+        assignOrgColors(sortedOrgs);
+
+        buildMultiSelectList('gu', 'msListGu', sortedGus, guCountMap, false);
+        buildMultiSelectList('org', 'msListOrg', sortedOrgs, orgCountMap, true);
+        buildMultiSelectList('type', 'msListType', sortedTypes, typeCountMap, false);
+
+        updateAllMultiSelectButtons();
 
         document.getElementById('statTotal').innerText = allWifiData.length.toLocaleString();
         applyFiltersAndRender();
     }
 
-    function populateSelectOptions(selectId, items, defaultLabel) {
-        var sel = document.getElementById(selectId);
-        sel.innerHTML = '<option value="ALL">' + defaultLabel + '</option>';
+    function buildMultiSelectList(categoryKey, listContainerId, items, countMap, showColorDot) {
+        var container = document.getElementById(listContainerId);
+        container.innerHTML = '';
+
         items.forEach(function(item) {
-            var opt = document.createElement('option');
-            opt.value = item;
-            opt.innerText = item;
-            sel.appendChild(opt);
+            var labelEl = document.createElement('label');
+            labelEl.className = 'ms-item';
+
+            var cb = document.createElement('input');
+            cb.type = 'checkbox';
+            cb.value = item;
+            cb.checked = false;
+            cb.addEventListener('change', function() {
+                if (cb.checked) {
+                    multiFilterState[categoryKey].add(item);
+                } else {
+                    multiFilterState[categoryKey].delete(item);
+                }
+                updateMultiSelectButtonLabel(categoryKey);
+                applyFiltersAndRender();
+            });
+
+            labelEl.appendChild(cb);
+
+            if (showColorDot) {
+                var dot = document.createElement('span');
+                dot.className = 'ms-color-dot';
+                dot.style.backgroundColor = orgColorMap[item] || '#059669';
+                labelEl.appendChild(dot);
+            }
+
+            var textSpan = document.createElement('span');
+            textSpan.style.flex = '1';
+            textSpan.innerText = item;
+            labelEl.appendChild(textSpan);
+
+            var cntSpan = document.createElement('small');
+            cntSpan.style.color = '#64748b';
+            cntSpan.innerText = '(' + (countMap[item] || 0).toLocaleString() + ')';
+            labelEl.appendChild(cntSpan);
+
+            container.appendChild(labelEl);
         });
     }
 
+    window.toggleAllMultiSelect = function(categoryKey, selectAll) {
+        var listIdMap = { gu: 'msListGu', org: 'msListOrg', type: 'msListType' };
+        var container = document.getElementById(listIdMap[categoryKey]);
+        var checkboxes = container.querySelectorAll('input[type="checkbox"]');
+
+        multiFilterState[categoryKey].clear();
+        checkboxes.forEach(function(cb) {
+            cb.checked = selectAll;
+            if (selectAll) {
+                multiFilterState[categoryKey].add(cb.value);
+            }
+        });
+
+        updateMultiSelectButtonLabel(categoryKey);
+        applyFiltersAndRender();
+    };
+
+    function updateMultiSelectButtonLabel(categoryKey) {
+        var btnIdMap = { gu: 'msBtnGu', org: 'msBtnOrg', type: 'msBtnType' };
+        var defaultTextMap = { gu: '전체 자치구', org: '전체 관리주체', type: '전체 설치유형' };
+
+        var btn = document.getElementById(btnIdMap[categoryKey]);
+        var labelSpan = btn.querySelector('.btn-label');
+        var selectedArr = Array.from(multiFilterState[categoryKey]);
+
+        if (selectedArr.length === 0) {
+            btn.classList.remove('has-selection');
+            labelSpan.innerText = defaultTextMap[categoryKey];
+        } else if (selectedArr.length === 1) {
+            btn.classList.add('has-selection');
+            labelSpan.innerText = selectedArr[0];
+        } else {
+            btn.classList.add('has-selection');
+            labelSpan.innerText = selectedArr[0] + ' 외 ' + (selectedArr.length - 1) + '개';
+        }
+    }
+
+    function updateAllMultiSelectButtons() {
+        updateMultiSelectButtonLabel('gu');
+        updateMultiSelectButtonLabel('org');
+        updateMultiSelectButtonLabel('type');
+    }
+
     // =========================================================================
-    // 4. 카테고리 필터 적용 및 줌 레벨별 동적 렌더링
+    // 4. 다중 카테고리 필터 적용 및 줌 레벨별 동적 렌더링 (수량 비례 원 & 주체별 색상)
     // =========================================================================
     function applyFiltersAndRender() {
-        var guVal = document.getElementById('filterGu').value;
-        var orgVal = document.getElementById('filterOrg').value;
-        var typeVal = document.getElementById('filterType').value;
+        var guSet = multiFilterState.gu;
+        var orgSet = multiFilterState.org;
+        var typeSet = multiFilterState.type;
         var kwVal = document.getElementById('filterKeyword').value.trim().toLowerCase();
 
         filteredWifiData = allWifiData.filter(function(item) {
-            if (guVal !== 'ALL' && item.gu !== guVal) return false;
-            if (orgVal !== 'ALL' && item.instlMby !== orgVal) return false;
-            if (typeVal !== 'ALL' && item.instlTy !== typeVal) return false;
+            if (guSet.size > 0 && !guSet.has(item.gu)) return false;
+            if (orgSet.size > 0 && !orgSet.has(item.instlMby)) return false;
+            if (typeSet.size > 0 && !typeSet.has(item.instlTy)) return false;
             if (kwVal) {
                 var hay = (item.name + ' ' + item.mgrNo + ' ' + item.addr1).toLowerCase();
                 if (hay.indexOf(kwVal) === -1) return false;
@@ -877,15 +1226,22 @@
 
         document.getElementById('statFiltered').innerText = filteredWifiData.length.toLocaleString();
 
-        if (guVal !== 'ALL' && SEOUL_GU_CENTERS[guVal] && map.getLevel() > DETAIL_ZOOM_LEVEL) {
-            var c = SEOUL_GU_CENTERS[guVal];
-            map.setCenter(new kakao.maps.LatLng(c[0], c[1]));
-            map.setLevel(5);
+        // 선택된 관리주체만 범례에 강조 표시
+        var legendOrgs = orgSet.size > 0 ? Array.from(orgSet) : Object.keys(orgColorMap);
+        renderOrgLegend(legendOrgs);
+
+        // 단일 자치구만 선택했고 광역 줌 상태인 경우 해당 자치구로 자동 확대 이동
+        if (guSet.size === 1) {
+            var onlyGu = Array.from(guSet)[0];
+            if (SEOUL_GU_CENTERS[onlyGu] && map.getLevel() > DETAIL_ZOOM_LEVEL) {
+                var c = SEOUL_GU_CENTERS[onlyGu];
+                map.setCenter(new kakao.maps.LatLng(c[0], c[1]));
+                map.setLevel(5);
+            }
         }
 
         renderMapByZoomLevel();
 
-        // 이미 반경 분석이 실행된 상태라면 필터 변경 시 반경 결과도 즉시 동기화
         if (uploadedTargetPoints.length > 0 && radiusCircles.length > 0) {
             runRadiusAnalysis(false);
         }
@@ -907,12 +1263,13 @@
         var viewModeEl = document.getElementById('statViewMode');
 
         if (filteredWifiData.length === 0) {
-            viewModeEl.innerHTML = '표시할 데이터가 없습니다.';
+            viewModeEl.innerHTML = '조건에 일치하는 데이터가 없습니다.';
             return;
         }
 
+        // [모드 A] 광역 줌 상태 (Level >= 6): 자치구별 수량에 비례하는 원(Circle) 버블 표출
         if (level > DETAIL_ZOOM_LEVEL) {
-            viewModeEl.innerHTML = '줌 레벨(' + level + '): <strong>자치구별 수량 집계 모드</strong> (배지 클릭 또는 확대 시 개별 마커)';
+            viewModeEl.innerHTML = '줌 레벨(' + level + '): <strong>자치구별 수량 비례 원 모드</strong> (원 클릭 또는 확대 시 개별 마커)';
 
             var guCounts = {};
             var guCoordSums = {};
@@ -928,8 +1285,25 @@
                 guCoordSums[d.gu].lng += d.lng;
             }
 
-            Object.keys(guCounts).forEach(function(guName) {
+            var guNames = Object.keys(guCounts);
+            var countsArr = guNames.map(function(g) { return guCounts[g]; });
+            var maxCount = Math.max.apply(null, countsArr);
+            var minCount = Math.min.apply(null, countsArr);
+
+            // 원 지름 범위: 최소 48px ~ 최대 116px (면적/제곱근 비례 스케일링으로 시각적 왜곡 방지)
+            var MIN_DIAMETER = 48;
+            var MAX_DIAMETER = 116;
+
+            guNames.forEach(function(guName) {
                 var count = guCounts[guName];
+                var ratio = (maxCount === minCount)
+                    ? 0.5
+                    : Math.sqrt((count - minCount) / (maxCount - minCount));
+                var diameter = Math.round(MIN_DIAMETER + ratio * (MAX_DIAMETER - MIN_DIAMETER));
+
+                var nameFontSize = diameter >= 85 ? '13px' : (diameter >= 65 ? '11px' : '10px');
+                var cntFontSize = diameter >= 85 ? '12px' : (diameter >= 65 ? '10px' : '9px');
+
                 var centerLatLng;
                 if (SEOUL_GU_CENTERS[guName]) {
                     centerLatLng = new kakao.maps.LatLng(SEOUL_GU_CENTERS[guName][0], SEOUL_GU_CENTERS[guName][1]);
@@ -940,17 +1314,23 @@
                     );
                 }
 
-                var badgeEl = document.createElement('div');
-                badgeEl.className = 'gu-cluster-badge';
-                badgeEl.innerHTML = guName + ' <span>' + count.toLocaleString() + '개</span>';
-                badgeEl.onclick = function() {
+                var bubbleEl = document.createElement('div');
+                bubbleEl.className = 'gu-circle-bubble';
+                bubbleEl.style.width = diameter + 'px';
+                bubbleEl.style.height = diameter + 'px';
+                bubbleEl.title = guName + ' 공공와이파이 총 ' + count.toLocaleString() + '대 (클릭 시 확대)';
+                bubbleEl.innerHTML =
+                    '<span class="gu-name" style="font-size:' + nameFontSize + ';">' + guName + '</span>' +
+                    '<span class="gu-cnt" style="font-size:' + cntFontSize + ';">' + count.toLocaleString() + '</span>';
+
+                bubbleEl.onclick = function() {
                     map.setCenter(centerLatLng);
                     map.setLevel(DETAIL_ZOOM_LEVEL);
                 };
 
                 var overlay = new kakao.maps.CustomOverlay({
                     position: centerLatLng,
-                    content: badgeEl,
+                    content: bubbleEl,
                     yAnchor: 0.5
                 });
                 overlay.setMap(map);
@@ -959,6 +1339,7 @@
             return;
         }
 
+        // [모드 B] 확대 상태 (Level <= 5): 현재 화면 영역 내 개별 드래그 마커 (관리주체별 고유 색상 적용)
         var bounds = map.getBounds();
         var sw = bounds.getSouthWest();
         var ne = bounds.getNorthEast();
@@ -973,19 +1354,19 @@
             }
         }
 
-        viewModeEl.innerHTML = '줌 레벨(' + level + '): <strong>개별 마커 모드</strong> (현재 화면 <strong>' + inBoundsItems.length + '</strong>개 표시 · 드래그 수정 가능)';
-
-        var greenIcon = createApMarkerIcon('#059669');
-        var redIcon = createApMarkerIcon('#dc2626');
+        viewModeEl.innerHTML = '줌 레벨(' + level + '): <strong>개별 마커 모드</strong> (현재 화면 <strong>' + inBoundsItems.length + '</strong>개 · 관리주체별 색상 구분)';
 
         inBoundsItems.forEach(function(apItem) {
             var pos = new kakao.maps.LatLng(apItem.lat, apItem.lng);
+            var orgColor = orgColorMap[apItem.instlMby] || '#059669';
+            var markerImg = getCachedApMarkerIcon(orgColor, apItem.modified);
+
             var m = new kakao.maps.Marker({
                 position: pos,
                 map: map,
                 draggable: true,
-                title: apItem.name + ' (' + apItem.mgrNo + ')',
-                image: apItem.modified ? redIcon : greenIcon
+                title: '[' + apItem.instlMby + '] ' + apItem.name + ' (' + apItem.mgrNo + ')',
+                image: markerImg
             });
 
             apItem._markerRef = m;
@@ -1008,7 +1389,9 @@
                 apItem.lat = parseFloat(newPos.getLat().toFixed(7));
                 apItem.lng = parseFloat(newPos.getLng().toFixed(7));
                 apItem.modified = true;
-                m.setImage(redIcon);
+
+                // 수정된 마커는 관리주체 고유 색상을 유지하되 굵은 빨간색 테두리/배지로 수정 여부 표시
+                m.setImage(getCachedApMarkerIcon(orgColor, true));
 
                 var modKey = apItem.mgrNo + '_' + apItem.idx;
                 modifiedMap[modKey] = apItem;
@@ -1022,7 +1405,6 @@
                     renderModifiedList();
                     showApDetailInfo(apItem, m);
 
-                    // AP 위치 이동 후 반경 분석 상태라면 즉시 재계산
                     if (uploadedTargetPoints.length > 0 && radiusCircles.length > 0) {
                         runRadiusAnalysis(false);
                     }
@@ -1035,16 +1417,27 @@
         });
     }
 
-    function createApMarkerIcon(colorHex) {
+    // 관리주체 색상 + 수정 여부(빨간 테두리) 조합 아이콘 캐싱
+    function getCachedApMarkerIcon(fillColorHex, isModified) {
+        var key = fillColorHex + '_' + (isModified ? 'MOD' : 'ORG');
+        if (markerIconCache[key]) return markerIconCache[key];
+
+        var strokeColor = isModified ? '#dc2626' : '#ffffff';
+        var strokeWidth = isModified ? '3' : '2';
+        var innerDotColor = isModified ? '#fef08a' : '#ffffff';
+
         var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="26" height="34" viewBox="0 0 26 34">' +
-            '<path fill="' + colorHex + '" stroke="#ffffff" stroke-width="2" d="M13 1C6.4 1 1 6.4 1 13c0 8.5 12 19 12 19s12-10.5 12-19C25 6.4 19.6 1 13 1z"/>' +
-            '<circle fill="#ffffff" cx="13" cy="13" r="4.5"/>' +
+            '<path fill="' + fillColorHex + '" stroke="' + strokeColor + '" stroke-width="' + strokeWidth + '" d="M13 1C6.4 1 1 6.4 1 13c0 8.5 12 19 12 19s12-10.5 12-19C25 6.4 19.6 1 13 1z"/>' +
+            '<circle fill="' + innerDotColor + '" cx="13" cy="13" r="4.5"/>' +
             '</svg>';
-        return new kakao.maps.MarkerImage(
+
+        var img = new kakao.maps.MarkerImage(
             'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg),
             new kakao.maps.Size(26, 34),
             { offset: new kakao.maps.Point(13, 34) }
         );
+        markerIconCache[key] = img;
+        return img;
     }
 
     function showApDetailInfo(apItem, markerObj) {
@@ -1090,8 +1483,9 @@
 
         if (item._markerRef) {
             var origPos = new kakao.maps.LatLng(item.lat, item.lng);
+            var orgColor = orgColorMap[item.instlMby] || '#059669';
             item._markerRef.setPosition(origPos);
-            item._markerRef.setImage(createApMarkerIcon(item.modified ? '#dc2626' : '#059669'));
+            item._markerRef.setImage(getCachedApMarkerIcon(orgColor, item.modified));
         }
 
         updateModifiedCounters();
@@ -1120,8 +1514,9 @@
 
         if (item._markerRef) {
             var origPos = new kakao.maps.LatLng(item.origLat, item.origLng);
+            var orgColor = orgColorMap[item.instlMby] || '#059669';
             item._markerRef.setPosition(origPos);
-            item._markerRef.setImage(createApMarkerIcon('#059669'));
+            item._markerRef.setImage(getCachedApMarkerIcon(orgColor, false));
         }
 
         updateModifiedCounters();
@@ -1149,8 +1544,9 @@
             item.modJibunAddr = '';
 
             if (item._markerRef) {
+                var orgColor = orgColorMap[item.instlMby] || '#059669';
                 item._markerRef.setPosition(new kakao.maps.LatLng(item.origLat, item.origLng));
-                item._markerRef.setImage(createApMarkerIcon('#059669'));
+                item._markerRef.setImage(getCachedApMarkerIcon(orgColor, false));
             }
         });
 
@@ -1363,14 +1759,13 @@
         var latDelta = (radiusM / 111320) * 1.2;
         var lngDelta = (radiusM / 88800) * 1.2;
         var searchPool = filteredWifiData.length > 0 ? filteredWifiData : allWifiData;
-        var purpleIcon = createApMarkerIcon('#7c3aed');
-        var magentaIcon = createApMarkerIcon('#db2777'); // 드래그 수정된 기준점 색상
+        var purpleIcon = getCachedApMarkerIcon('#7c3aed', false);
+        var magentaIcon = getCachedApMarkerIcon('#db2777', true);
 
         uploadedTargetPoints.forEach(function(pt) {
             var centerPos = new kakao.maps.LatLng(pt.lat, pt.lng);
             bounds.extend(centerPos);
 
-            // 보라색 기준점 마커 (드래그 수정 가능)
             var tm = new kakao.maps.Marker({
                 position: centerPos,
                 map: map,
@@ -1388,7 +1783,6 @@
                 updateLocationByCoords(new kakao.maps.LatLng(pt.lat, pt.lng), '[기준점] ' + pt.name, tm);
             });
 
-            // 기준점 마커 드래그 종료 시 좌표 반영 및 반경 재계산
             kakao.maps.event.addListener(tm, 'dragend', function() {
                 var newPos = tm.getPosition();
                 pt.lat = parseFloat(newPos.getLat().toFixed(7));
@@ -1396,7 +1790,6 @@
                 pt.modified = (pt.lat !== pt.origLat || pt.lng !== pt.origLng);
 
                 updateTargetEditButtonState();
-                // 현재 지도 시점을 유지한 채 반경 원과 AP 매칭 결과만 즉시 재계산
                 runRadiusAnalysis(false);
                 showToast('📍 기준점 [' + pt.name + '] 이동 완료 — 반경 내 AP가 재계산되었습니다.');
             });
@@ -1469,7 +1862,6 @@
         container.innerHTML = html;
     }
 
-    // [다운로드 1] 반경 내 AP 상세 목록 CSV
     function downloadRadiusResultCsv() {
         if (radiusMatchedResults.length === 0) return;
         var radiusM = document.getElementById('radiusMetersInput').value;
@@ -1488,13 +1880,11 @@
         triggerCsvDownload(rows.join('\r\n'), '반경' + radiusM + 'm_내_AP상세목록');
     }
 
-    // [다운로드 2] 반경 분석 자치구·관리주체별 통계 요약 CSV
     function downloadRadiusStatsCsv() {
         if (radiusMatchedResults.length === 0) return;
         var radiusM = document.getElementById('radiusMetersInput').value;
         var rows = [];
 
-        // 섹션 1: 전체 요약 (자치구 x 관리주체별 AP 수량 및 중복 제거 고유 AP 수)
         rows.push('[1. 전체 자치구 · 관리주체별 통계 요약 (검색반경: ' + radiusM + 'm)]');
         rows.push(['자치구', '관리주체', '반경내_매칭건수', '고유AP수(중복제거)', '구성비(%)'].join(','));
 
@@ -1531,12 +1921,9 @@
         rows.push(['합계', '전체', totalMatches, totalUniqueSet.size, '100.0%'].map(csvEscape).join(','));
         rows.push('');
 
-        // 섹션 2: 기준 장소별 · 자치구 · 관리주체별 세부 집계
         rows.push('[2. 기준 장소별 · 자치구 · 관리주체별 상세 집계]');
         rows.push(['기준장소명', '기준좌표_보정여부', '기준_위도', '기준_경도', '자치구', '관리주체', '반경내_AP수'].join(','));
 
-        var targetAgg = {};
-        // 0건인 기준장소도 누락 없이 표출하기 위해 uploadedTargetPoints 순회
         uploadedTargetPoints.forEach(function(pt) {
             var matchedForPt = radiusMatchedResults.filter(function(r) {
                 return r.targetName === pt.name && r.targetLat === pt.lat && r.targetLng === pt.lng;
@@ -1587,7 +1974,7 @@
     }
 
     // =========================================================================
-    // 7. 기본 지도 / 로드뷰 / 주소·좌표 검색 초기화
+    // 7. 기본 지도 / 로드뷰 / 주소·좌표 검색 초기화 및 이벤트 바인딩
     // =========================================================================
     function updateLocationByCoords(latlng, placeName, targetMarker, fallbackAddr) {
         var lat = latlng.getLat().toFixed(7);
@@ -1630,7 +2017,39 @@
         }
     }
 
+    function setupMultiSelectDropdowns() {
+        var configs = [
+            { wrapId: 'msWrapGu', btnId: 'msBtnGu', panelId: 'msPanelGu' },
+            { wrapId: 'msWrapOrg', btnId: 'msBtnOrg', panelId: 'msPanelOrg' },
+            { wrapId: 'msWrapType', btnId: 'msBtnType', panelId: 'msPanelType' }
+        ];
+
+        configs.forEach(function(cfg) {
+            var btn = document.getElementById(cfg.btnId);
+            var panel = document.getElementById(cfg.panelId);
+            btn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                var willOpen = !panel.classList.contains('open');
+                configs.forEach(function(c) {
+                    document.getElementById(c.panelId).classList.remove('open');
+                });
+                if (willOpen) panel.classList.add('open');
+            });
+            panel.addEventListener('click', function(e) {
+                e.stopPropagation();
+            });
+        });
+
+        document.addEventListener('click', function() {
+            configs.forEach(function(c) {
+                document.getElementById(c.panelId).classList.remove('open');
+            });
+        });
+    }
+
     function bindAllEvents() {
+        setupMultiSelectDropdowns();
+
         document.getElementById('btnReloadDefaultCsv').addEventListener('click', loadDefaultRepoCsv);
         document.getElementById('btnUploadWifiCsv').addEventListener('click', function() { document.getElementById('wifiCsvInput').click(); });
         document.getElementById('wifiCsvInput').addEventListener('change', function(e) { if (e.target.files[0]) handleWifiCsvFile(e.target.files[0]); });
@@ -1679,16 +2098,18 @@
             if (e.key === 'Enter') document.getElementById('btnSearchCoord').click();
         });
 
-        ['filterGu', 'filterOrg', 'filterType'].forEach(function(id) {
-            document.getElementById(id).addEventListener('change', applyFiltersAndRender);
-        });
         document.getElementById('filterKeyword').addEventListener('keyup', function(e) {
             if (e.key === 'Enter') applyFiltersAndRender();
         });
+
         document.getElementById('btnResetFilter').addEventListener('click', function() {
-            document.getElementById('filterGu').value = 'ALL';
-            document.getElementById('filterOrg').value = 'ALL';
-            document.getElementById('filterType').value = 'ALL';
+            ['gu', 'org', 'type'].forEach(function(key) {
+                multiFilterState[key].clear();
+            });
+            document.querySelectorAll('.ms-list input[type="checkbox"]').forEach(function(cb) {
+                cb.checked = false;
+            });
+            updateAllMultiSelectButtons();
             document.getElementById('filterKeyword').value = '';
             applyFiltersAndRender();
         });
@@ -1788,7 +2209,7 @@
         bindAllEvents();
 
         if (typeof kakao === 'undefined' || !kakao.maps) {
-            alert('카카오맵 SDK 로드 실패: JavaScript 키 및 도메인(https://chobojeong.github.io) 등록을 확인하세요.');
+            alert('카카오맵 SDK 로드 실패: GitHub Secrets(KAKAO_JS_KEY) 및 카카오 콘솔 도메인(https://chobojeong.github.io) 등록을 확인하세요.');
             return;
         }
 
@@ -1806,7 +2227,7 @@
 
             clickMarker = new kakao.maps.Marker({
                 position: seoulCenter,
-                image: createApMarkerIcon('#2563eb'),
+                image: getCachedApMarkerIcon('#1e293b', false),
                 map: map
             });
             infowindow = new kakao.maps.InfoWindow({ zIndex: 5 });
@@ -1814,7 +2235,7 @@
             roadview = new kakao.maps.Roadview(document.getElementById('roadview'));
             roadviewClient = new kakao.maps.RoadviewClient();
             rvMarker = new kakao.maps.Marker({
-                image: createApMarkerIcon('#f59e0b'),
+                image: getCachedApMarkerIcon('#f59e0b', false),
                 position: seoulCenter,
                 map: null
             });
