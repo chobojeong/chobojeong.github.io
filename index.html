@@ -70,7 +70,7 @@
         }
         .input-group button:hover { background-color: #1d4ed8; }
 
-        /* 상단 2단: 다중 선택 필터 및 지도/뷰 컨트롤바 */
+        /* 상단 2단: 다중 선택 필터 및 지도/경계/뷰 컨트롤바 */
         .filter-bar {
             background-color: #f8fafc;
             padding: 7px 16px;
@@ -85,7 +85,7 @@
         .filter-group {
             display: flex;
             flex-wrap: wrap;
-            gap: 6px;
+            gap: 5px;
             align-items: center;
         }
 
@@ -96,7 +96,7 @@
         }
         .multi-select-btn {
             height: 30px;
-            padding: 0 10px;
+            padding: 0 9px;
             border: 1px solid #cbd5e1;
             border-radius: 5px;
             font-size: 12px;
@@ -105,9 +105,9 @@
             cursor: pointer;
             display: flex;
             align-items: center;
-            gap: 6px;
-            min-width: 145px;
-            max-width: 195px;
+            gap: 5px;
+            min-width: 132px;
+            max-width: 185px;
             justify-content: space-between;
             white-space: nowrap;
         }
@@ -191,11 +191,11 @@
             font-size: 12px;
             background: #ffffff;
             color: #1e293b;
-            width: 145px;
+            width: 135px;
         }
         .btn-action {
             height: 30px;
-            padding: 0 10px;
+            padding: 0 9px;
             border-radius: 5px;
             font-size: 11px;
             font-weight: bold;
@@ -208,6 +208,8 @@
         .btn-action:hover { background: #e2e8f0; }
         .btn-action:disabled { opacity: 0.55; cursor: not-allowed; }
         .btn-action.active { background: #2563eb; color: #ffffff; border-color: #2563eb; }
+        .btn-indigo.active { background: #4338ca; color: #ffffff; border-color: #4338ca; }
+        .btn-slate.active { background: #334155; color: #ffffff; border-color: #334155; }
         .btn-teal { background: #0f766e; color: #ffffff; border-color: #0f766e; }
         .btn-teal:hover { background: #115e59; }
         .btn-green { background: #059669; color: #ffffff; border-color: #059669; }
@@ -361,6 +363,20 @@
             color: #fde047;
             font-weight: bold;
             text-shadow: 0 1px 2px rgba(0,0,0,0.45);
+        }
+
+        /* 행정동 명칭 라벨 (확대 시 표시) */
+        .dong-name-label {
+            background: rgba(255, 255, 255, 0.82);
+            border: 1px solid #94a3b8;
+            border-radius: 4px;
+            padding: 1px 5px;
+            font-size: 10px;
+            font-weight: bold;
+            color: #334155;
+            pointer-events: none;
+            white-space: nowrap;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.12);
         }
 
         /* 우측 사이드 패널 */
@@ -544,8 +560,8 @@
 <!-- 상단 1단: 저장소 CSV 자동 연동 상태 및 주소·좌표 검색 -->
 <header>
     <div class="title-area">
-        <h1>📡 서울시 공공와이파이 2.6만 AP 관제 · 좌표 보정 · 반경 분석</h1>
-        <p id="dataSourceSubtitle">저장소 최신 데이터(seoul_wifi.csv) 자동 연동 · 다중 필터 · 수량 비례 원 집계 · 반경 통계 추출</p>
+        <h1>📡 서울시 공공와이파이 2.6만 AP 관제 · 행정경계 · 반경 분석</h1>
+        <p id="dataSourceSubtitle">저장소 최신 데이터(seoul_wifi.csv) 자동 연동 · 구/동 행정경계 · 서울외곽 마스킹 · 반경 통계 추출</p>
     </div>
 
     <div class="top-controls">
@@ -556,23 +572,21 @@
 
         <div class="input-group">
             <label for="addressInput">주소/장소</label>
-            <input type="text" id="addressInput" style="width:150px;" placeholder="예: 서울시청, 강남역">
+            <input type="text" id="addressInput" style="width:140px;" placeholder="예: 서울시청, 강남역">
             <button type="button" id="btnSearchAddr">검색</button>
         </div>
 
         <div class="input-group">
             <label for="coordInput">좌표</label>
-            <input type="text" id="coordInput" style="width:150px;" placeholder="37.5665, 126.9780">
+            <input type="text" id="coordInput" style="width:140px;" placeholder="37.5665, 126.9780">
             <button type="button" id="btnSearchCoord">이동</button>
         </div>
     </div>
 </header>
 
-<!-- 상단 2단: 복수 선택 카테고리 필터 + 지도/뷰 모드 + 수정본 저장 -->
+<!-- 상단 2단: 복수 선택 카테고리 필터 + 행정경계/외곽블러 + 지도/뷰 모드 + 수정본 저장 -->
 <div class="filter-bar">
     <div class="filter-group">
-        <strong style="font-size:12px; color:#334155;">다중필터:</strong>
-
         <!-- 자치구 복수 선택 드롭다운 -->
         <div class="multi-select-wrap" id="msWrapGu">
             <button type="button" class="multi-select-btn" id="msBtnGu">
@@ -629,16 +643,20 @@
     </div>
 
     <div class="filter-group">
-        <button type="button" class="btn-action active" id="type-roadmap">🗺️ 일반</button>
-        <button type="button" class="btn-action" id="type-skyview">🛰️ 위성</button>
-        <button type="button" class="btn-action" id="roadLayerBtn">🛣️ 로드뷰선 OFF</button>
+        <!-- 행정구역 경계 & 서울시 외곽 블러/딤 토글 -->
+        <button type="button" class="btn-action btn-indigo active" id="btnToggleGuBorder" title="서울시 25개 자치구 경계선 표시/숨김">🗺️ 구경계 ON</button>
+        <button type="button" class="btn-action btn-indigo active" id="btnToggleDongBorder" title="확대 시 행정동 경계선 표시/숨김">🏘️ 동경계 ON</button>
+        <button type="button" class="btn-action btn-slate active" id="btnToggleOutsideMask" title="서울시 외곽(경기·인천) 영역 반투명 블러 처리">🌫️ 서울외곽 블러 ON</button>
+
+        <button type="button" class="btn-action active" id="type-roadmap">일반</button>
+        <button type="button" class="btn-action" id="type-skyview">위성</button>
+        <button type="button" class="btn-action" id="roadLayerBtn">로드뷰선</button>
         <button type="button" class="btn-action active" id="btn-map">지도만</button>
         <button type="button" class="btn-action" id="btn-split">지도+로드뷰</button>
-        <button type="button" id="btnUndoLast" class="btn-action btn-amber" disabled title="방금 이동한 AP 마커를 원래 위치로 되돌립니다 (Ctrl+Z)">
-            ↩️ 직전 되돌리기
-        </button>
+
+        <button type="button" id="btnUndoLast" class="btn-action btn-amber" disabled title="직전 이동 복구 (Ctrl+Z)">↩️ 되돌리기</button>
         <button type="button" id="btnDownloadModified" class="btn-action btn-red" disabled>
-            💾 AP 수정내역 CSV (<span id="modCountTop">0</span>)
+            💾 수정CSV (<span id="modCountTop">0</span>)
         </button>
     </div>
 </div>
@@ -649,7 +667,7 @@
     <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
 </div>
 
-<!-- 메인 영역 (초기 mode-map 적용: 지도만 표시, 로드뷰 숨김) -->
+<!-- 메인 영역 -->
 <div class="main-container">
     <div class="visual-area mode-map" id="visualArea">
         <div id="map-wrapper">
@@ -657,6 +675,7 @@
             <div class="map-status-overlay" id="mapStatusOverlay">
                 <div>적재 데이터: <strong id="statTotal">0</strong>건 / 필터 결과: <strong id="statFiltered">0</strong>건</div>
                 <div id="statViewMode">지도 줌 레벨: <strong>자치구 수량 비례 원 모드</strong> (확대 시 개별 마커 표시)</div>
+                <div id="statBoundaryStatus" style="font-size:11px; color:#475569;">행정경계: 불러오는 중...</div>
             </div>
             <!-- 관리주체별 아이콘 색상 범례 -->
             <div class="map-legend-box" id="orgLegendBox" style="display:none;">
@@ -720,8 +739,8 @@
 
             <div style="font-size:11px; color:#475569; background:#f8fafc; padding:8px; border-radius:5px; border:1px dashed #cbd5e1; line-height:1.5;">
                 💡 <b>사용 팁:</b><br>
-                • 광역 화면에서는 <b>수량에 비례하는 원</b>으로 구별 현황이 표시됩니다.<br>
-                • 지도를 <b>5레벨 이하로 확대</b>하면 <b>관리주체별 고유 색상 마커</b>가 나타나며, 드래그로 위치를 보정할 수 있습니다.
+                • <b>구경계</b>는 전 줌 레벨에서 표시되며, <b>동경계 및 동 명칭</b>은 지도를 확대(6레벨 이하)하면 자동으로 나타납니다.<br>
+                • <b>서울외곽 블러 ON</b> 상태에서는 서울시 경계 바깥(경기·인천)이 어둡게 처리되어 서울시 권역만 선명하게 집중할 수 있습니다.
             </div>
         </div>
 
@@ -793,7 +812,7 @@
 
 <script>
     // =========================================================================
-    // 1. 전역 상태 변수, 다중 필터 상태 및 관리주체별 색상 팔레트
+    // 1. 전역 상태 변수, 다중 필터, 행정구역 경계 & 외곽 블러/마스킹 레이어
     // =========================================================================
     var map = null, geocoder = null, ps = null, clickMarker = null, infowindow = null;
     var roadview = null, roadviewClient = null, rvMarker = null;
@@ -801,35 +820,33 @@
     var isRoadLayerOn = false;
     var isSplitRoadviewOn = false;
 
+    // 행정경계 & 서울외곽 블러/마스킹 토글 상태
+    var isGuBorderOn = true;
+    var isDongBorderOn = true;
+    var isOutsideMaskOn = true;
+
+    var guBoundaryPolygons = [];      // 서울시 25개 자치구 경계 폴리곤
+    var dongBoundaryPolygons = [];    // 서울시 426개 행정동 경계 폴리곤
+    var dongLabelOverlays = [];       // 행정동 명칭 라벨 (확대 시 표시)
+    var outsideMaskPolygon = null;    // 서울시 외곽 지역(경기·인천) 블러/딤 마스킹 폴리곤
+
     var allWifiData = [];
     var filteredWifiData = [];
     var modifiedMap = {};
     var moveHistoryStack = [];
     var currentSelectedAp = null;
 
-    // 복수 선택 필터 상태 (Set: 비어있으면 '전체'로 간주)
     var multiFilterState = {
         gu: new Set(),
         org: new Set(),
         type: new Set()
     };
 
-    // 관리주체별 고유 색상 매핑 테이블 & 아이콘 캐시
     var orgColorMap = {};
     var markerIconCache = {};
     var ORG_COLOR_PALETTE = [
-        '#059669', // 에메랄드 그린 (서울시 등 기본)
-        '#2563eb', // 로열 블루
-        '#d97706', // 앰버 오렌지
-        '#0891b2', // 시안 블루
-        '#7c3aed', // 바이올렛
-        '#db2777', // 마젠타 핑크
-        '#4f46e5', // 인디고
-        '#65a30d', // 라임 그린
-        '#ea580c', // 딥 오렌지
-        '#0d9488', // 틸
-        '#9333ea', // 퍼플
-        '#ca8a04'  // 골드
+        '#059669', '#2563eb', '#d97706', '#0891b2', '#7c3aed', '#db2777',
+        '#4f46e5', '#65a30d', '#ea580c', '#0d9488', '#9333ea', '#ca8a04'
     ];
 
     var guOverlays = [];
@@ -841,6 +858,7 @@
 
     var MAX_VISIBLE_MARKERS = 450;
     var DETAIL_ZOOM_LEVEL = 5;
+    var DONG_VISIBLE_ZOOM_LEVEL = 6; // 6레벨 이하로 확대 시 동경계 & 동명칭 표시
 
     var SEOUL_GU_CENTERS = {
         "종로구": [37.573050, 126.979189], "중구": [37.563756, 126.997552], "용산구": [37.532600, 126.990000],
@@ -866,6 +884,198 @@
         if (uploadedTargetPoints.length > 0) {
             runRadiusAnalysis(false);
         }
+    }
+
+    // =========================================================================
+    // 1-2. 서울시 자치구·행정동 경계 GeoJSON 로드 및 서울 외곽 블러/딤 마스킹 생성
+    // =========================================================================
+    async function loadSeoulAdminBoundaries() {
+        var statusEl = document.getElementById('statBoundaryStatus');
+
+        // 1) 서울시 자치구 경계 (25개구) + 서울시 외곽 블러/딤 마스킹 생성
+        var guUrls = [
+            './seoul_municipalities.geojson',
+            'https://raw.githubusercontent.com/southkorea/seoul-maps/master/kostat/2013/json/seoul_municipalities_geo_simple.json'
+        ];
+
+        var guGeoJson = null;
+        for (var i = 0; i < guUrls.length; i++) {
+            try {
+                var res = await fetch(guUrls[i]);
+                if (res.ok) {
+                    guGeoJson = await res.json();
+                    break;
+                }
+            } catch (e) { /* 다음 소스 시도 */ }
+        }
+
+        if (guGeoJson && guGeoJson.features) {
+            buildGuBoundariesAndOutsideMask(guGeoJson);
+        }
+
+        // 2) 서울시 행정동 경계 (426개동) 로드
+        var dongUrls = [
+            './seoul_submunicipalities.geojson',
+            'https://raw.githubusercontent.com/southkorea/seoul-maps/master/kostat/2013/json/seoul_submunicipalities_geo_simple.json'
+        ];
+
+        var dongGeoJson = null;
+        for (var j = 0; j < dongUrls.length; j++) {
+            try {
+                var resD = await fetch(dongUrls[j]);
+                if (resD.ok) {
+                    dongGeoJson = await resD.json();
+                    break;
+                }
+            } catch (e) { /* 다음 소스 시도 */ }
+        }
+
+        if (dongGeoJson && dongGeoJson.features) {
+            buildDongBoundaries(dongGeoJson);
+        }
+
+        var loadedParts = [];
+        if (guBoundaryPolygons.length > 0) loadedParts.push('구경계(' + guBoundaryPolygons.length + '개)');
+        if (dongBoundaryPolygons.length > 0) loadedParts.push('동경계(' + dongBoundaryPolygons.length + '개)');
+        statusEl.innerText = loadedParts.length > 0
+            ? ('행정경계: ' + loadedParts.join(' · ') + ' 로드 완료')
+            : '행정경계: 외부 GeoJSON 연결 대기 중';
+
+        syncAdminBoundaryVisibility();
+    }
+
+    function geoRingToKakaoPath(ring) {
+        return ring.map(function(coord) {
+            return new kakao.maps.LatLng(coord[1], coord[0]);
+        });
+    }
+
+    function buildGuBoundariesAndOutsideMask(geoJson) {
+        var seoulHolePaths = [];
+
+        geoJson.features.forEach(function(feat) {
+            var geom = feat.geometry;
+            if (!geom) return;
+
+            var polygonList = (geom.type === 'Polygon') ? [geom.coordinates] : geom.coordinates;
+            polygonList.forEach(function(polyCoords) {
+                var outerRingPath = geoRingToKakaoPath(polyCoords[0]);
+                seoulHolePaths.push(outerRingPath);
+
+                // 자치구 경계 폴리곤 (내부는 투명으로 두고 클릭 방해 없도록 처리)
+                var guPoly = new kakao.maps.Polygon({
+                    path: outerRingPath,
+                    strokeWeight: 2.2,
+                    strokeColor: '#1e3a8a',
+                    strokeOpacity: 0.78,
+                    strokeStyle: 'solid',
+                    fillColor: '#3b82f6',
+                    fillOpacity: 0.02,
+                    zIndex: 2
+                });
+                guBoundaryPolygons.push(guPoly);
+            });
+        });
+
+        // 서울시 외곽 전체(한반도 전역 덮개)에서 서울시 25개 자치구 영역만 구멍(Hole)으로 뚫은 마스킹 폴리곤 생성
+        // 카카오맵 Polygon은 첫 번째 배열이 외곽 경계, 두 번째 이후 배열들이 내부 구멍(Hole)으로 렌더링됨
+        var worldOuterRing = [
+            new kakao.maps.LatLng(43.5, 123.5),
+            new kakao.maps.LatLng(43.5, 132.5),
+            new kakao.maps.LatLng(32.5, 132.5),
+            new kakao.maps.LatLng(32.5, 123.5)
+        ];
+
+        var maskPaths = [worldOuterRing].concat(seoulHolePaths);
+        outsideMaskPolygon = new kakao.maps.Polygon({
+            path: maskPaths,
+            strokeWeight: 2.5,
+            strokeColor: '#0f172a',
+            strokeOpacity: 0.85,
+            strokeStyle: 'solid',
+            fillColor: '#0f172a',
+            fillOpacity: 0.46, // 서울 외곽(경기·인천) 블러/딤 강도
+            zIndex: 1
+        });
+    }
+
+    function buildDongBoundaries(geoJson) {
+        geoJson.features.forEach(function(feat) {
+            var geom = feat.geometry;
+            if (!geom) return;
+
+            var props = feat.properties || {};
+            var dongName = props.name || props.ADM_DR_NM || props.EMD_KOR_NM || '';
+
+            var polygonList = (geom.type === 'Polygon') ? [geom.coordinates] : geom.coordinates;
+            polygonList.forEach(function(polyCoords, idx) {
+                var outerRingPath = geoRingToKakaoPath(polyCoords[0]);
+
+                var dongPoly = new kakao.maps.Polygon({
+                    path: outerRingPath,
+                    strokeWeight: 1.1,
+                    strokeColor: '#64748b',
+                    strokeOpacity: 0.65,
+                    strokeStyle: 'shortdash',
+                    fillColor: '#ffffff',
+                    fillOpacity: 0.0,
+                    zIndex: 1
+                });
+                dongBoundaryPolygons.push(dongPoly);
+
+                // 첫 번째 폴리곤의 무게중심에 행정동 명칭 라벨 생성
+                if (idx === 0 && dongName && outerRingPath.length > 0) {
+                    var sumLat = 0, sumLng = 0;
+                    outerRingPath.forEach(function(ll) {
+                        sumLat += ll.getLat();
+                        sumLng += ll.getLng();
+                    });
+                    var centerLL = new kakao.maps.LatLng(sumLat / outerRingPath.length, sumLng / outerRingPath.length);
+                    var lblEl = document.createElement('div');
+                    lblEl.className = 'dong-name-label';
+                    lblEl.innerText = dongName;
+
+                    var dongOverlay = new kakao.maps.CustomOverlay({
+                        position: centerLL,
+                        content: lblEl,
+                        yAnchor: 0.5,
+                        zIndex: 2
+                    });
+                    dongLabelOverlays.push(dongOverlay);
+                }
+            });
+        });
+    }
+
+    function syncAdminBoundaryVisibility() {
+        if (!map) return;
+        var level = map.getLevel();
+
+        // 1) 서울 외곽 블러/딤 마스킹
+        if (outsideMaskPolygon) {
+            outsideMaskPolygon.setMap(isOutsideMaskOn ? map : null);
+        }
+
+        // 2) 서울시 자치구 경계선
+        guBoundaryPolygons.forEach(function(poly) {
+            poly.setMap(isGuBorderOn ? map : null);
+        });
+
+        // 3) 서울시 행정동 경계선 및 동 이름 라벨 (줌 레벨 6 이하 확대 시 표출하여 시인성 확보)
+        var showDongNow = isDongBorderOn && (level <= DONG_VISIBLE_ZOOM_LEVEL);
+        dongBoundaryPolygons.forEach(function(poly) {
+            poly.setMap(showDongNow ? map : null);
+        });
+
+        var showDongLabels = isDongBorderOn && (level <= 5);
+        dongLabelOverlays.forEach(function(ov) {
+            if (!showDongLabels) {
+                ov.setMap(null);
+            } else {
+                var bounds = map.getBounds();
+                ov.setMap(bounds.contain(ov.getPosition()) ? map : null);
+            }
+        });
     }
 
     // =========================================================================
@@ -1002,19 +1212,18 @@
         orgColorMap = {};
         markerIconCache = {};
         sortedOrgs.forEach(function(orgName, index) {
-            // 주요 기관명 직관적 색상 우선 매핑, 나머지는 팔레트 순환 배정
             if (/서울시|서울특별시/.test(orgName)) {
-                orgColorMap[orgName] = '#059669'; // 초록
+                orgColorMap[orgName] = '#059669';
             } else if (/자치구|구청/.test(orgName)) {
-                orgColorMap[orgName] = '#2563eb'; // 파랑
+                orgColorMap[orgName] = '#2563eb';
             } else if (/KT|케이티/i.test(orgName)) {
-                orgColorMap[orgName] = '#0891b2'; // 청록
+                orgColorMap[orgName] = '#0891b2';
             } else if (/SK|에스케이/i.test(orgName)) {
-                orgColorMap[orgName] = '#ea580c'; // 주황
+                orgColorMap[orgName] = '#ea580c';
             } else if (/LG|엘지/i.test(orgName)) {
-                orgColorMap[orgName] = '#db2777'; // 핑크
+                orgColorMap[orgName] = '#db2777';
             } else if (/교통공사|메트로|철도/.test(orgName)) {
-                orgColorMap[orgName] = '#7c3aed'; // 보라
+                orgColorMap[orgName] = '#7c3aed';
             } else {
                 orgColorMap[orgName] = ORG_COLOR_PALETTE[index % ORG_COLOR_PALETTE.length];
             }
@@ -1205,7 +1414,7 @@
     }
 
     // =========================================================================
-    // 4. 다중 카테고리 필터 적용 및 줌 레벨별 동적 렌더링 (수량 비례 원 & 주체별 색상)
+    // 4. 다중 카테고리 필터 적용 및 줌 레벨별 동적 렌더링
     // =========================================================================
     function applyFiltersAndRender() {
         var guSet = multiFilterState.gu;
@@ -1226,11 +1435,9 @@
 
         document.getElementById('statFiltered').innerText = filteredWifiData.length.toLocaleString();
 
-        // 선택된 관리주체만 범례에 강조 표시
         var legendOrgs = orgSet.size > 0 ? Array.from(orgSet) : Object.keys(orgColorMap);
         renderOrgLegend(legendOrgs);
 
-        // 단일 자치구만 선택했고 광역 줌 상태인 경우 해당 자치구로 자동 확대 이동
         if (guSet.size === 1) {
             var onlyGu = Array.from(guSet)[0];
             if (SEOUL_GU_CENTERS[onlyGu] && map.getLevel() > DETAIL_ZOOM_LEVEL) {
@@ -1257,6 +1464,7 @@
 
     function renderMapByZoomLevel() {
         if (!map) return;
+        syncAdminBoundaryVisibility();
         clearAllMapLayers();
 
         var level = map.getLevel();
@@ -1267,7 +1475,7 @@
             return;
         }
 
-        // [모드 A] 광역 줌 상태 (Level >= 6): 자치구별 수량에 비례하는 원(Circle) 버블 표출
+        // [모드 A] 광역 줌 상태 (Level >= 6): 자치구별 수량 비례 원형 버블
         if (level > DETAIL_ZOOM_LEVEL) {
             viewModeEl.innerHTML = '줌 레벨(' + level + '): <strong>자치구별 수량 비례 원 모드</strong> (원 클릭 또는 확대 시 개별 마커)';
 
@@ -1290,7 +1498,6 @@
             var maxCount = Math.max.apply(null, countsArr);
             var minCount = Math.min.apply(null, countsArr);
 
-            // 원 지름 범위: 최소 48px ~ 최대 116px (면적/제곱근 비례 스케일링으로 시각적 왜곡 방지)
             var MIN_DIAMETER = 48;
             var MAX_DIAMETER = 116;
 
@@ -1331,7 +1538,8 @@
                 var overlay = new kakao.maps.CustomOverlay({
                     position: centerLatLng,
                     content: bubbleEl,
-                    yAnchor: 0.5
+                    yAnchor: 0.5,
+                    zIndex: 4
                 });
                 overlay.setMap(map);
                 guOverlays.push(overlay);
@@ -1365,6 +1573,7 @@
                 position: pos,
                 map: map,
                 draggable: true,
+                zIndex: 5,
                 title: '[' + apItem.instlMby + '] ' + apItem.name + ' (' + apItem.mgrNo + ')',
                 image: markerImg
             });
@@ -1390,7 +1599,6 @@
                 apItem.lng = parseFloat(newPos.getLng().toFixed(7));
                 apItem.modified = true;
 
-                // 수정된 마커는 관리주체 고유 색상을 유지하되 굵은 빨간색 테두리/배지로 수정 여부 표시
                 m.setImage(getCachedApMarkerIcon(orgColor, true));
 
                 var modKey = apItem.mgrNo + '_' + apItem.idx;
@@ -1410,14 +1618,13 @@
                     }
                 });
 
-                showToast('[' + apItem.name + '] 이동 완료 (실수 시 [↩️ 직전 되돌리기] 또는 Ctrl+Z)');
+                showToast('[' + apItem.name + '] 이동 완료 (실수 시 [↩️ 되돌리기] 또는 Ctrl+Z)');
             });
 
             activeMarkers.push(m);
         });
     }
 
-    // 관리주체 색상 + 수정 여부(빨간 테두리) 조합 아이콘 캐싱
     function getCachedApMarkerIcon(fillColorHex, isModified) {
         var key = fillColorHex + '_' + (isModified ? 'MOD' : 'ORG');
         if (markerIconCache[key]) return markerIconCache[key];
@@ -1459,7 +1666,7 @@
     }
 
     // =========================================================================
-    // 5. 실수 이동 복구 기능 (직전 되돌리기 / 개별 원위치 / 전체 원복)
+    // 5. 실수 이동 복구 기능
     // =========================================================================
     function undoLastMarkerMove() {
         if (moveHistoryStack.length === 0) {
@@ -1804,7 +2011,8 @@
                 strokeOpacity: 0.85,
                 strokeStyle: 'solid',
                 fillColor: pt.modified ? '#ec4899' : '#8b5cf6',
-                fillOpacity: 0.18
+                fillOpacity: 0.18,
+                zIndex: 3
             });
             circle.setMap(map);
             radiusCircles.push(circle);
@@ -2050,6 +2258,31 @@
     function bindAllEvents() {
         setupMultiSelectDropdowns();
 
+        // 행정경계 & 외곽 블러/딤 토글 버튼
+        document.getElementById('btnToggleGuBorder').addEventListener('click', function() {
+            isGuBorderOn = !isGuBorderOn;
+            this.classList.toggle('active', isGuBorderOn);
+            this.innerText = isGuBorderOn ? '🗺️ 구경계 ON' : '🗺️ 구경계 OFF';
+            syncAdminBoundaryVisibility();
+        });
+
+        document.getElementById('btnToggleDongBorder').addEventListener('click', function() {
+            isDongBorderOn = !isDongBorderOn;
+            this.classList.toggle('active', isDongBorderOn);
+            this.innerText = isDongBorderOn ? '🏘️ 동경계 ON' : '🏘️ 동경계 OFF';
+            syncAdminBoundaryVisibility();
+            if (isDongBorderOn && map.getLevel() > DONG_VISIBLE_ZOOM_LEVEL) {
+                showToast('동경계는 지도를 6레벨 이하로 확대하면 자동으로 표시됩니다.');
+            }
+        });
+
+        document.getElementById('btnToggleOutsideMask').addEventListener('click', function() {
+            isOutsideMaskOn = !isOutsideMaskOn;
+            this.classList.toggle('active', isOutsideMaskOn);
+            this.innerText = isOutsideMaskOn ? '🌫️ 서울외곽 블러 ON' : '🌫️ 서울외곽 블러 OFF';
+            syncAdminBoundaryVisibility();
+        });
+
         document.getElementById('btnReloadDefaultCsv').addEventListener('click', loadDefaultRepoCsv);
         document.getElementById('btnUploadWifiCsv').addEventListener('click', function() { document.getElementById('wifiCsvInput').click(); });
         document.getElementById('wifiCsvInput').addEventListener('change', function(e) { if (e.target.files[0]) handleWifiCsvFile(e.target.files[0]); });
@@ -2127,11 +2360,9 @@
             if (isRoadLayerOn) {
                 map.removeOverlayMapTypeId(kakao.maps.MapTypeId.ROADVIEW);
                 this.classList.remove('active');
-                this.innerText = '🛣️ 로드뷰선 OFF';
             } else {
                 map.addOverlayMapTypeId(kakao.maps.MapTypeId.ROADVIEW);
                 this.classList.add('active');
-                this.innerText = '🛣️ 로드뷰선 ON';
             }
             isRoadLayerOn = !isRoadLayerOn;
         });
@@ -2255,6 +2486,7 @@
             });
 
             updateLocationByCoords(seoulCenter, '서울특별시청');
+            loadSeoulAdminBoundaries();
             loadDefaultRepoCsv();
         });
     });
