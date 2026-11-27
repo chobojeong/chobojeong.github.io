@@ -21,8 +21,20 @@
             align-items: center;
             justify-content: space-between;
         }
-        .title-area h1 { font-size: 15px; color: #0f172a; font-weight: 800; }
+        .title-area h1 { font-size: 15px; color: #0f172a; font-weight: 800; display: flex; align-items: center; gap: 8px; }
         .title-area p { font-size: 11px; color: #64748b; }
+
+        .draft-badge {
+            display: none;
+            font-size: 11px;
+            font-weight: bold;
+            padding: 2px 8px;
+            border-radius: 12px;
+            background: #ecfdf5;
+            color: #047857;
+            border: 1px solid #6ee7b7;
+        }
+        .draft-badge.visible { display: inline-flex; align-items: center; gap: 4px; }
 
         .top-controls {
             display: flex;
@@ -214,6 +226,9 @@
         .btn-teal:hover { background: #115e59; }
         .btn-green { background: #059669; color: #ffffff; border-color: #059669; }
         .btn-green:hover { background: #047857; }
+        .btn-blue-solid { background: #1d4ed8; color: #ffffff; border-color: #1d4ed8; }
+        .btn-blue-solid:hover { background: #1e40af; }
+        .btn-blue-solid:disabled { background: #94a3b8; border-color: #94a3b8; }
         .btn-purple { background: #7c3aed; color: #ffffff; border-color: #7c3aed; }
         .btn-purple:hover { background: #6d28d9; }
         .btn-red { background: #dc2626; color: #ffffff; border-color: #dc2626; }
@@ -624,7 +639,10 @@
 <!-- 상단 1단: 저장소 CSV 자동 연동 상태 및 주소·좌표 검색 -->
 <header>
     <div class="title-area">
-        <h1>📡 서울시 공공와이파이 2.6만 AP 관제 · 행정경계 · 반경 분석</h1>
+        <h1>
+            <span>📡 서울시 공공와이파이 2.6만 AP 관제 · 행정경계 · 반경 분석</span>
+            <span id="draftStatusBadge" class="draft-badge" title="브라우저 LocalStorage에 작업 내역이 자동 저장되고 있습니다.">💾 임시저장됨</span>
+        </h1>
         <p id="dataSourceSubtitle">저장소 최신 데이터(seoul_wifi.csv) 자동 연동 · 구/동 행정경계 · 구별 통계 요약 · 반경 분석</p>
     </div>
 
@@ -648,7 +666,7 @@
     </div>
 </header>
 
-<!-- 상단 2단: 복수 선택 카테고리 필터 + 행정경계/외곽블러 + 지도/뷰 모드 + 수정본 저장 -->
+<!-- 상단 2단: 복수 선택 카테고리 필터 + 행정경계/외곽블러 + 지도/뷰 모드 + 수정본/통합본 저장 -->
 <div class="filter-bar">
     <div class="filter-group">
         <!-- 자치구 복수 선택 드롭다운 -->
@@ -718,8 +736,11 @@
         <button type="button" class="btn-action" id="btn-split">지도+로드뷰</button>
 
         <button type="button" id="btnUndoLast" class="btn-action btn-amber" disabled title="직전 이동 복구 (Ctrl+Z)">↩️ 되돌리기</button>
-        <button type="button" id="btnDownloadModified" class="btn-action btn-red" disabled>
+        <button type="button" id="btnDownloadModified" class="btn-action btn-red" disabled title="수정된 AP 내역만 별도 CSV 다운로드">
             💾 수정CSV (<span id="modCountTop">0</span>)
+        </button>
+        <button type="button" id="btnDownloadMergedAll" class="btn-action btn-blue-solid" disabled title="원본 전체 CSV에 수정 좌표를 반영한 통합본 다운로드">
+            📦 전체통합 CSV
         </button>
     </div>
 </div>
@@ -833,20 +854,27 @@
 
             <div style="font-size:11px; color:#475569; background:#f8fafc; padding:8px; border-radius:5px; border:1px dashed #cbd5e1; line-height:1.5;">
                 💡 <b>사용 팁:</b><br>
-                • 지도에서 <b>특정 자치구 경계 안을 클릭</b>하면 해당 구의 전체 AP 대수·관리주체별 비중·설치유형별 집계가 상단에 즉시 요약됩니다.<br>
-                • 지도를 <b>5레벨 이하로 확대</b>하면 관리주체별 색상 마커를 드래그해 좌표를 보정할 수 있습니다.
+                - 지도에서 <b>특정 자치구 경계 안을 클릭</b>하면 해당 구의 전체 AP 대수·관리주체별 비중·설치유형별 집계가 상단에 즉시 요약됩니다.<br>
+                - 지도를 <b>5레벨 이하로 확대</b>하면 관리주체별 색상 마커를 드래그해 좌표를 보정할 수 있으며, 수정 내역은 브라우저에 자동 임시저장됩니다.
             </div>
         </div>
 
-        <!-- 탭 2: 드래그로 위치 수정된 AP 내역 관리 -->
+        <!-- 탭 2: 드래그로 위치 수정된 AP 내역 관리 + 통합 CSV 내보내기 + 임시저장 관리 -->
         <div class="tab-content" id="tabContentMod">
-            <div style="display:flex; justify-content:space-between; align-items:center; gap:6px;">
-                <span style="font-size:12px; font-weight:bold; color:#0f172a;">AP 좌표 변경 목록</span>
-                <div style="display:flex; gap:4px;">
-                    <button type="button" id="btnRevertAllMod" class="btn-action btn-amber" disabled>↩️ 전체 원복</button>
-                    <button type="button" id="btnExportModTab" class="btn-action btn-red" disabled>💾 CSV 저장</button>
+            <div style="display:flex; flex-direction:column; gap:6px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:8px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; gap:6px;">
+                    <span style="font-size:12px; font-weight:bold; color:#0f172a;">AP 좌표 변경 목록</span>
+                    <div style="display:flex; gap:4px;">
+                        <button type="button" id="btnRevertAllMod" class="btn-action btn-amber" disabled style="height:26px; padding:0 7px;">↩️ 전체 원복</button>
+                        <button type="button" id="btnClearLocalDraft" class="btn-action" title="브라우저 LocalStorage에 임시저장된 작업 내역 비우기" style="height:26px; padding:0 7px;">🗑️ 임시저장 삭제</button>
+                    </div>
+                </div>
+                <div style="display:flex; gap:5px;">
+                    <button type="button" id="btnExportModTab" class="btn-action btn-red" disabled style="flex:1; height:28px;">💾 수정내역만 CSV</button>
+                    <button type="button" id="btnExportMergedTab" class="btn-action btn-blue-solid" disabled style="flex:1; height:28px;">📦 전체통합 CSV</button>
                 </div>
             </div>
+
             <div class="list-container" id="modListContainer">
                 <div style="font-size:12px; color:#64748b; text-align:center; padding:30px 10px;">
                     아직 드래그로 위치를 수정한 AP가 없습니다.<br>지도를 확대하여 마커를 이동해 보세요.
@@ -906,7 +934,7 @@
 
 <script>
     // =========================================================================
-    // 1. 전역 상태 변수, 다중 필터, 행정구역 경계 & 외곽 블러/마스킹 레이어
+    // 1. 전역 상태 변수, 원본 CSV 메타 보관, LocalStorage 임시저장 상수
     // =========================================================================
     var map = null, geocoder = null, ps = null, clickMarker = null, infowindow = null;
     var roadview = null, roadviewClient = null, rvMarker = null;
@@ -926,6 +954,13 @@
     var dongBoundaryPolygons = [];
     var dongLabelOverlays = [];
     var outsideMaskPolygon = null;
+
+    // 원본 CSV 헤더 및 컬럼 인덱스 (전체통합 CSV 내보내기용)
+    var rawCsvHeaders = [];
+    var rawCsvIdxMap = null;
+    var currentDataSourceKey = 'default_seoul_wifi';
+
+    var LOCAL_STORAGE_PREFIX = 'seoul_wifi_ap_draft_v1_';
 
     var allWifiData = [];
     var filteredWifiData = [];
@@ -981,6 +1016,197 @@
         if (uploadedTargetPoints.length > 0) {
             runRadiusAnalysis(false);
         }
+    }
+
+    // =========================================================================
+    // 1-1. LocalStorage 자동 임시저장 및 복원 엔진
+    // =========================================================================
+    function getDraftStorageKey() {
+        return LOCAL_STORAGE_PREFIX + currentDataSourceKey;
+    }
+
+    function updateDraftBadge(savedAtIso, count) {
+        var badge = document.getElementById('draftStatusBadge');
+        if (!badge) return;
+        if (!savedAtIso || count <= 0) {
+            badge.classList.remove('visible');
+            return;
+        }
+        var d = new Date(savedAtIso);
+        var hh = String(d.getHours()).padStart(2, '0');
+        var mm = String(d.getMinutes()).padStart(2, '0');
+        var ss = String(d.getSeconds()).padStart(2, '0');
+        badge.innerText = '💾 임시저장됨 (' + count + '건 · ' + hh + ':' + mm + ':' + ss + ')';
+        badge.classList.add('visible');
+    }
+
+    function saveDraftToLocalStorage() {
+        try {
+            var storageKey = getDraftStorageKey();
+            var modKeys = Object.keys(modifiedMap);
+
+            if (modKeys.length === 0 && moveHistoryStack.length === 0) {
+                localStorage.removeItem(storageKey);
+                updateDraftBadge(null, 0);
+                return;
+            }
+
+            var serializedMods = modKeys.map(function(k) {
+                var item = modifiedMap[k];
+                return {
+                    mgrNo: item.mgrNo,
+                    idx: item.idx,
+                    origLat: item.origLat,
+                    origLng: item.origLng,
+                    lat: item.lat,
+                    lng: item.lng,
+                    modRoadAddr: item.modRoadAddr || '',
+                    modJibunAddr: item.modJibunAddr || ''
+                };
+            });
+
+            var serializedHistory = moveHistoryStack.map(function(h) {
+                return {
+                    mgrNo: h.apItem.mgrNo,
+                    idx: h.apItem.idx,
+                    prevLat: h.prevLat,
+                    prevLng: h.prevLng,
+                    prevModified: h.prevModified,
+                    prevRoadAddr: h.prevRoadAddr || '',
+                    prevJibunAddr: h.prevJibunAddr || ''
+                };
+            });
+
+            var nowIso = new Date().toISOString();
+            var payload = {
+                savedAt: nowIso,
+                sourceKey: currentDataSourceKey,
+                modifications: serializedMods,
+                history: serializedHistory
+            };
+
+            localStorage.setItem(storageKey, JSON.stringify(payload));
+            updateDraftBadge(nowIso, serializedMods.length);
+        } catch (err) {
+            console.warn('LocalStorage 임시저장 실패:', err);
+        }
+    }
+
+    function restoreDraftFromLocalStorage() {
+        try {
+            var storageKey = getDraftStorageKey();
+            var rawJson = localStorage.getItem(storageKey);
+            if (!rawJson) {
+                updateDraftBadge(null, 0);
+                return 0;
+            }
+
+            var payload = JSON.parse(rawJson);
+            if (!payload || !Array.isArray(payload.modifications) || payload.modifications.length === 0) {
+                updateDraftBadge(null, 0);
+                return 0;
+            }
+
+            // 빠른 매칭을 위한 mgrNo + origLat/origLng 및 idx 인덱스 구축
+            var byExactKey = {};
+            var byMgrNo = {};
+            allWifiData.forEach(function(item) {
+                var exact = item.mgrNo + '_' + item.origLat + '_' + item.origLng;
+                byExactKey[exact] = item;
+                if (!byMgrNo[item.mgrNo]) byMgrNo[item.mgrNo] = [];
+                byMgrNo[item.mgrNo].push(item);
+            });
+
+            function findMatchingAp(savedEntry) {
+                var exact = savedEntry.mgrNo + '_' + savedEntry.origLat + '_' + savedEntry.origLng;
+                if (byExactKey[exact]) return byExactKey[exact];
+                if (byMgrNo[savedEntry.mgrNo] && byMgrNo[savedEntry.mgrNo].length === 1) {
+                    return byMgrNo[savedEntry.mgrNo][0];
+                }
+                if (typeof savedEntry.idx === 'number' && allWifiData[savedEntry.idx] &&
+                    allWifiData[savedEntry.idx].mgrNo === savedEntry.mgrNo) {
+                    return allWifiData[savedEntry.idx];
+                }
+                return null;
+            }
+
+            var restoredCount = 0;
+            payload.modifications.forEach(function(m) {
+                var targetAp = findMatchingAp(m);
+                if (!targetAp) return;
+
+                targetAp.lat = parseFloat(Number(m.lat).toFixed(7));
+                targetAp.lng = parseFloat(Number(m.lng).toFixed(7));
+                targetAp.modified = true;
+                targetAp.modRoadAddr = m.modRoadAddr || '';
+                targetAp.modJibunAddr = m.modJibunAddr || '';
+
+                var modKey = targetAp.mgrNo + '_' + targetAp.idx;
+                modifiedMap[modKey] = targetAp;
+                restoredCount++;
+            });
+
+            moveHistoryStack = [];
+            if (Array.isArray(payload.history)) {
+                payload.history.forEach(function(h) {
+                    var targetAp = findMatchingAp(h);
+                    if (!targetAp) return;
+                    moveHistoryStack.push({
+                        apItem: targetAp,
+                        prevLat: h.prevLat,
+                        prevLng: h.prevLng,
+                        prevModified: h.prevModified,
+                        prevRoadAddr: h.prevRoadAddr || '',
+                        prevJibunAddr: h.prevJibunAddr || ''
+                    });
+                });
+            }
+
+            updateModifiedCounters();
+            renderModifiedList();
+            updateDraftBadge(payload.savedAt, restoredCount);
+            return restoredCount;
+        } catch (err) {
+            console.warn('LocalStorage 임시저장 복원 실패:', err);
+            return 0;
+        }
+    }
+
+    function clearLocalStorageDraft() {
+        var storageKey = getDraftStorageKey();
+        var hasSaved = localStorage.getItem(storageKey) !== null;
+        if (!hasSaved && Object.keys(modifiedMap).length === 0) {
+            showToast('삭제할 임시저장 내역이 없습니다.');
+            return;
+        }
+        if (!confirm('브라우저에 임시저장된 수정 내역을 삭제하시겠습니까?\n(현재 화면의 수정 내역도 함께 원본 좌표로 초기화됩니다.)')) return;
+
+        localStorage.removeItem(storageKey);
+        updateDraftBadge(null, 0);
+
+        Object.keys(modifiedMap).forEach(function(k) {
+            var item = modifiedMap[k];
+            item.lat = item.origLat;
+            item.lng = item.origLng;
+            item.modified = false;
+            item.modRoadAddr = '';
+            item.modJibunAddr = '';
+
+            if (item._markerRef) {
+                var orgColor = orgColorMap[item.instlMby] || '#059669';
+                item._markerRef.setPosition(new kakao.maps.LatLng(item.origLat, item.origLng));
+                item._markerRef.setImage(getCachedApMarkerIcon(orgColor, false));
+            }
+        });
+
+        modifiedMap = {};
+        moveHistoryStack = [];
+        updateModifiedCounters();
+        renderModifiedList();
+        if (currentSelectedAp) {
+            showApDetailInfo(currentSelectedAp, currentSelectedAp._markerRef);
+        }
+        showToast('🗑️ 임시저장 내역을 삭제하고 원본 좌표로 초기화했습니다.');
     }
 
     // =========================================================================
@@ -1320,7 +1546,7 @@
         return result;
     }
 
-    function parseAndIngestCsvBuffer(buffer, sourceLabel) {
+    function parseAndIngestCsvBuffer(buffer, sourceLabel, sourceKey) {
         var text = new TextDecoder('utf-8').decode(buffer);
         if (text.indexOf('\uFFFD') !== -1) {
             text = new TextDecoder('euc-kr').decode(buffer);
@@ -1329,10 +1555,13 @@
         var lines = text.split(/\r?\n/).filter(function(l) { return l.trim() !== ''; });
         if (lines.length < 2) {
             alert('데이터가 없는 CSV 파일입니다.');
-            return false;
+            return 0;
         }
 
+        currentDataSourceKey = sourceKey || 'default_seoul_wifi';
         var headers = parseCsvLine(lines[0]);
+        rawCsvHeaders = headers.slice();
+
         var idxMap = {
             mgrNo: headers.findIndex(function(h) { return /관리번호|MGR_NO/i.test(h); }),
             gu: headers.findIndex(function(h) { return /자치구|시군구|WRDOFC/i.test(h); }),
@@ -1347,6 +1576,7 @@
             lng: headers.findIndex(function(h) { return /경도|LNT|LNG|LON|X좌표/i.test(h); }),
             workDttm: headers.findIndex(function(h) { return /작업일자|WORK_DTTM/i.test(h); })
         };
+        rawCsvIdxMap = idxMap;
 
         var records = [];
         var latestWorkDate = '';
@@ -1357,6 +1587,7 @@
                 latestWorkDate = cols[idxMap.workDttm];
             }
             records.push({
+                rawCols: cols,
                 X_SWIFI_MGR_NO: idxMap.mgrNo !== -1 ? cols[idxMap.mgrNo] : ('ROW_' + i),
                 X_SWIFI_WRDOFC: idxMap.gu !== -1 ? cols[idxMap.gu] : '',
                 X_SWIFI_MAIN_NM: idxMap.name !== -1 ? cols[idxMap.name] : ('AP_' + i),
@@ -1371,12 +1602,12 @@
             });
         }
 
-        ingestWifiRecords(records);
+        var restoredCount = ingestWifiRecords(records);
 
         var subEl = document.getElementById('dataSourceSubtitle');
         var dateNote = latestWorkDate ? (' (기준 작업일자: ' + latestWorkDate + ')') : '';
         subEl.innerText = '데이터 출처: ' + sourceLabel + dateNote + ' | 총 ' + allWifiData.length.toLocaleString() + '대 적재됨';
-        return true;
+        return { loaded: true, restoredCount: restoredCount };
     }
 
     async function loadDefaultRepoCsv() {
@@ -1395,9 +1626,14 @@
             var buffer = await response.arrayBuffer();
             document.getElementById('progressFill').style.width = '85%';
 
-            if (parseAndIngestCsvBuffer(buffer, 'seoul_wifi.csv (자동 동기화)')) {
+            var resInfo = parseAndIngestCsvBuffer(buffer, 'seoul_wifi.csv (자동 동기화)', 'default_seoul_wifi');
+            if (resInfo && resInfo.loaded) {
                 document.getElementById('progressFill').style.width = '100%';
-                showToast('seoul_wifi.csv 자동 로드 완료 (' + allWifiData.length.toLocaleString() + '건)');
+                if (resInfo.restoredCount > 0) {
+                    showToast('seoul_wifi.csv 로드 및 임시저장 작업 ' + resInfo.restoredCount + '건 자동 복원 완료!');
+                } else {
+                    showToast('seoul_wifi.csv 자동 로드 완료 (' + allWifiData.length.toLocaleString() + '건)');
+                }
             }
         } catch (err) {
             console.warn('seoul_wifi.csv 로드 예외:', err);
@@ -1417,9 +1653,15 @@
 
         var reader = new FileReader();
         reader.onload = function(e) {
-            if (parseAndIngestCsvBuffer(e.target.result, file.name)) {
+            var fileKey = 'local_' + file.name.replace(/[^a-zA-Z0-9가-힣._-]/g, '_');
+            var resInfo = parseAndIngestCsvBuffer(e.target.result, file.name, fileKey);
+            if (resInfo && resInfo.loaded) {
                 document.getElementById('progressFill').style.width = '100%';
-                showToast(file.name + ' 로드 완료 (' + allWifiData.length.toLocaleString() + '건)');
+                if (resInfo.restoredCount > 0) {
+                    showToast(file.name + ' 로드 및 임시저장 작업 ' + resInfo.restoredCount + '건 자동 복원 완료!');
+                } else {
+                    showToast(file.name + ' 로드 완료 (' + allWifiData.length.toLocaleString() + '건)');
+                }
             }
             setTimeout(function() { loadingBar.style.display = 'none'; }, 400);
         };
@@ -1495,9 +1737,11 @@
             if (isNaN(v1) || isNaN(v2)) continue;
 
             var lat = v1, lng = v2;
+            var swapped = false;
             if (lat > 100 && lng < 50) {
                 lat = v2;
                 lng = v1;
+                swapped = true;
             }
             if (lat < 33 || lat > 43 || lng < 124 || lng > 132) continue;
 
@@ -1511,6 +1755,8 @@
 
             allWifiData.push({
                 idx: allWifiData.length,
+                rawCols: r.rawCols ? r.rawCols.slice() : null,
+                latLngSwappedInRaw: swapped,
                 mgrNo: (r.X_SWIFI_MGR_NO || ('AP_' + i)).trim(),
                 gu: gu,
                 name: (r.X_SWIFI_MAIN_NM || '').trim(),
@@ -1543,11 +1789,18 @@
         updateAllMultiSelectButtons();
 
         document.getElementById('statTotal').innerText = allWifiData.length.toLocaleString();
+
+        // 데이터 적재 직후 LocalStorage 임시저장 내역 자동 복원
+        var restoredCount = restoreDraftFromLocalStorage();
+        updateModifiedCounters();
+
         applyFiltersAndRender();
 
         if (selectedGuName) {
             showGuApSummaryPanel(selectedGuName, null);
         }
+
+        return restoredCount;
     }
 
     function buildMultiSelectList(categoryKey, listContainerId, items, countMap, showColorDot) {
@@ -1844,6 +2097,9 @@
                 var modKey = apItem.mgrNo + '_' + apItem.idx;
                 modifiedMap[modKey] = apItem;
 
+                // 좌표 이동 직후 즉시 임시저장
+                saveDraftToLocalStorage();
+
                 geocoder.coord2Address(apItem.lng, apItem.lat, function(result, status) {
                     if (status === kakao.maps.services.Status.OK) {
                         apItem.modRoadAddr = result[0].road_address ? result[0].road_address.address_name : '';
@@ -1852,13 +2108,14 @@
                     updateModifiedCounters();
                     renderModifiedList();
                     showApDetailInfo(apItem, m);
+                    saveDraftToLocalStorage();
 
                     if (uploadedTargetPoints.length > 0 && radiusCircles.length > 0) {
                         runRadiusAnalysis(false);
                     }
                 });
 
-                showToast('[' + apItem.name + '] 이동 완료 (실수 시 [↩️ 되돌리기] 또는 Ctrl+Z)');
+                showToast('[' + apItem.name + '] 이동 완료 · 자동 임시저장됨');
             });
 
             activeMarkers.push(m);
@@ -1906,7 +2163,7 @@
     }
 
     // =========================================================================
-    // 5. 실수 이동 복구 기능
+    // 5. 실수 이동 복구, 수정 CSV 내보내기 및 원본 전체 데이터 통합 CSV 다운로드
     // =========================================================================
     function undoLastMarkerMove() {
         if (moveHistoryStack.length === 0) {
@@ -1937,6 +2194,7 @@
 
         updateModifiedCounters();
         renderModifiedList();
+        saveDraftToLocalStorage();
         showApDetailInfo(item, item._markerRef);
         if (uploadedTargetPoints.length > 0 && radiusCircles.length > 0) {
             runRadiusAnalysis(false);
@@ -1968,6 +2226,7 @@
 
         updateModifiedCounters();
         renderModifiedList();
+        saveDraftToLocalStorage();
         if (currentSelectedAp && currentSelectedAp.idx === idx) {
             showApDetailInfo(item, item._markerRef);
         }
@@ -2001,6 +2260,7 @@
         moveHistoryStack = [];
         updateModifiedCounters();
         renderModifiedList();
+        saveDraftToLocalStorage();
         if (currentSelectedAp) {
             showApDetailInfo(currentSelectedAp, currentSelectedAp._markerRef);
         }
@@ -2012,12 +2272,15 @@
 
     function updateModifiedCounters() {
         var count = Object.keys(modifiedMap).length;
+        var hasData = allWifiData.length > 0;
         document.getElementById('modCountTop').innerText = count;
         document.getElementById('modCountTab').innerText = count;
         document.getElementById('btnDownloadModified').disabled = (count === 0);
         document.getElementById('btnExportModTab').disabled = (count === 0);
         document.getElementById('btnRevertAllMod').disabled = (count === 0);
         document.getElementById('btnUndoLast').disabled = (moveHistoryStack.length === 0);
+        document.getElementById('btnDownloadMergedAll').disabled = !hasData;
+        document.getElementById('btnExportMergedTab').disabled = !hasData;
     }
 
     function renderModifiedList() {
@@ -2072,6 +2335,58 @@
 
         triggerCsvDownload(rows.join('\r\n'), '서울시공공와이파이_AP좌표수정내역');
         showToast('수정된 ' + keys.length + '건의 AP 내역을 CSV로 저장했습니다.');
+    }
+
+    function downloadMergedAllCsv() {
+        if (allWifiData.length === 0) return alert('적재된 데이터가 없습니다.');
+
+        var modCount = Object.keys(modifiedMap).length;
+        var hasRawCols = rawCsvHeaders.length > 0 && rawCsvIdxMap && allWifiData[0].rawCols;
+
+        var rows = [];
+        if (hasRawCols) {
+            rows.push(rawCsvHeaders.map(csvEscape).join(','));
+            var latColIdx = rawCsvIdxMap.lat !== -1 ? rawCsvIdxMap.lat : 1;
+            var lngColIdx = rawCsvIdxMap.lng !== -1 ? rawCsvIdxMap.lng : 2;
+            var addr1ColIdx = rawCsvIdxMap.addr1;
+
+            for (var i = 0; i < allWifiData.length; i++) {
+                var d = allWifiData[i];
+                var cols = d.rawCols ? d.rawCols.slice() : [];
+                while (cols.length < rawCsvHeaders.length) cols.push('');
+
+                if (d.modified) {
+                    if (d.latLngSwappedInRaw) {
+                        cols[latColIdx] = d.lng;
+                        cols[lngColIdx] = d.lat;
+                    } else {
+                        cols[latColIdx] = d.lat;
+                        cols[lngColIdx] = d.lng;
+                    }
+                    if (addr1ColIdx !== -1 && (d.modRoadAddr || d.modJibunAddr)) {
+                        cols[addr1ColIdx] = d.modRoadAddr || d.modJibunAddr;
+                    }
+                }
+                rows.push(cols.map(csvEscape).join(','));
+            }
+        } else {
+            var fallbackHeaders = ['관리번호', '자치구', '와이파이명', '도로명주소', '상세주소', '설치유형', '설치기관', '서비스구분', '설치년도', '위도', '경도'];
+            rows.push(fallbackHeaders.join(','));
+            for (var j = 0; j < allWifiData.length; j++) {
+                var item = allWifiData[j];
+                var outAddr1 = (item.modified && (item.modRoadAddr || item.modJibunAddr))
+                    ? (item.modRoadAddr || item.modJibunAddr)
+                    : item.addr1;
+                rows.push([
+                    item.mgrNo, item.gu, item.name, outAddr1, item.addr2,
+                    item.instlTy, item.instlMby, item.svcSe, item.year,
+                    item.lat, item.lng
+                ].map(csvEscape).join(','));
+            }
+        }
+
+        triggerCsvDownload(rows.join('\r\n'), '서울시공공와이파이_전체통합본');
+        showToast('전체 ' + allWifiData.length.toLocaleString() + '건(수정 반영 ' + modCount + '건) 통합 CSV를 저장했습니다.');
     }
 
     // =========================================================================
@@ -2669,6 +2984,7 @@
             }
         });
         document.getElementById('btnRevertAllMod').addEventListener('click', revertAllModifiedAps);
+        document.getElementById('btnClearLocalDraft').addEventListener('click', clearLocalStorageDraft);
 
         document.addEventListener('keydown', function(e) {
             if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
@@ -2681,6 +2997,8 @@
 
         document.getElementById('btnDownloadModified').addEventListener('click', downloadModifiedOnlyCsv);
         document.getElementById('btnExportModTab').addEventListener('click', downloadModifiedOnlyCsv);
+        document.getElementById('btnDownloadMergedAll').addEventListener('click', downloadMergedAllCsv);
+        document.getElementById('btnExportMergedTab').addEventListener('click', downloadMergedAllCsv);
 
         document.getElementById('btnUploadTargetCsv').addEventListener('click', function() { document.getElementById('targetCsvInput').click(); });
         document.getElementById('targetCsvInput').addEventListener('change', function(e) { if (e.target.files[0]) handleTargetCsvUpload(e.target.files[0]); });
