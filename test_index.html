@@ -381,7 +381,7 @@
 
         /* 우측 사이드 패널 */
         .side-panel {
-            width: 405px;
+            width: 415px;
             background: #ffffff;
             border-left: 1px solid #cbd5e1;
             display: flex;
@@ -420,6 +420,69 @@
         }
         .tab-content.active { display: flex; }
 
+        /* 자치구 클릭 통계 요약 카드 */
+        .gu-summary-card {
+            background: linear-gradient(135deg, #eff6ff 0%, #f8fafc 100%);
+            border: 1.5px solid #3b82f6;
+            border-radius: 8px;
+            padding: 11px 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 9px;
+            box-shadow: 0 2px 6px rgba(37, 99, 235, 0.1);
+        }
+        .gu-summary-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #bfdbfe;
+            padding-bottom: 6px;
+        }
+        .gu-summary-title {
+            font-size: 14px;
+            font-weight: 800;
+            color: #1e3a8a;
+        }
+        .gu-summary-total-badge {
+            background: #1e3a8a;
+            color: #ffffff;
+            padding: 3px 9px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .gu-stat-section-title {
+            font-size: 11px;
+            font-weight: bold;
+            color: #334155;
+            margin-bottom: 4px;
+        }
+        .gu-stat-row {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            margin-bottom: 5px;
+        }
+        .gu-stat-row-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 11.5px;
+            color: #1e293b;
+        }
+        .gu-stat-bar-bg {
+            width: 100%;
+            height: 5px;
+            background: #e2e8f0;
+            border-radius: 3px;
+            overflow: hidden;
+        }
+        .gu-stat-bar-fill {
+            height: 100%;
+            border-radius: 3px;
+            transition: width 0.25s ease;
+        }
+
         .info-item {
             background: #f8fafc;
             border: 1px solid #e2e8f0;
@@ -450,6 +513,7 @@
             cursor: pointer;
             font-weight: bold;
         }
+        .copy-btn:hover { background: #cbd5e1; }
 
         /* 반경 분석 박스 */
         .radius-box {
@@ -561,7 +625,7 @@
 <header>
     <div class="title-area">
         <h1>📡 서울시 공공와이파이 2.6만 AP 관제 · 행정경계 · 반경 분석</h1>
-        <p id="dataSourceSubtitle">저장소 최신 데이터(seoul_wifi.csv) 자동 연동 · 구/동 행정경계 · 서울외곽 마스킹 · 반경 통계 추출</p>
+        <p id="dataSourceSubtitle">저장소 최신 데이터(seoul_wifi.csv) 자동 연동 · 구/동 행정경계 · 구별 통계 요약 · 반경 분석</p>
     </div>
 
     <div class="top-controls">
@@ -643,7 +707,6 @@
     </div>
 
     <div class="filter-group">
-        <!-- 행정구역 경계 & 서울시 외곽 블러/딤 토글 -->
         <button type="button" class="btn-action btn-indigo active" id="btnToggleGuBorder" title="서울시 25개 자치구 경계선 표시/숨김">🗺️ 구경계 ON</button>
         <button type="button" class="btn-action btn-indigo active" id="btnToggleDongBorder" title="확대 시 행정동 경계선 표시/숨김">🏘️ 동경계 ON</button>
         <button type="button" class="btn-action btn-slate active" id="btnToggleOutsideMask" title="서울시 외곽(경기·인천) 영역 반투명 블러 처리">🌫️ 서울외곽 블러 ON</button>
@@ -703,8 +766,39 @@
             <button type="button" class="panel-tab" id="tabBtnRadius">⭕ 반경 AP 분석</button>
         </div>
 
-        <!-- 탭 1: 선택 지점 및 AP 상세 정보 -->
+        <!-- 탭 1: 선택 자치구 현황 요약 + 선택 지점/AP 상세 정보 -->
         <div class="tab-content active" id="tabContentInfo">
+            <!-- 자치구 경계 클릭 시 표시되는 해당 구 AP 현황 요약 카드 -->
+            <div class="gu-summary-card" id="guSummaryCard" style="display:none;">
+                <div class="gu-summary-header">
+                    <div>
+                        <div class="gu-summary-title" id="guSummaryTitle">📊 강남구 AP 현황 요약</div>
+                        <div style="font-size:11px; color:#475569;" id="guSummarySub">전체 적재 기준</div>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:5px;">
+                        <span class="gu-summary-total-badge" id="guSummaryTotalBadge">0대</span>
+                        <button type="button" class="copy-btn" id="btnCopyGuSummary" title="요약 텍스트 복사">복사</button>
+                        <button type="button" class="copy-btn" id="btnCloseGuSummary" title="요약 닫기">✕</button>
+                    </div>
+                </div>
+
+                <div>
+                    <div class="gu-stat-section-title">🏢 관리주체별 비중</div>
+                    <div id="guSummaryOrgList"></div>
+                </div>
+
+                <div>
+                    <div class="gu-stat-section-title">📌 설치유형별 집계</div>
+                    <div id="guSummaryTypeList"></div>
+                </div>
+
+                <div style="display:flex; gap:6px; margin-top:2px;">
+                    <button type="button" class="btn-action active" id="btnFilterThisGuOnly" style="flex:1; height:27px; font-size:11px;">
+                        🔍 이 자치구만 필터링
+                    </button>
+                </div>
+            </div>
+
             <div class="info-item">
                 <div class="label"><span>AP명 / 관리번호 (또는 기준점)</span><button type="button" class="copy-btn" data-target="infoApName">복사</button></div>
                 <div class="value" id="infoApName">-</div>
@@ -739,8 +833,8 @@
 
             <div style="font-size:11px; color:#475569; background:#f8fafc; padding:8px; border-radius:5px; border:1px dashed #cbd5e1; line-height:1.5;">
                 💡 <b>사용 팁:</b><br>
-                • <b>구경계</b>는 전 줌 레벨에서 표시되며, <b>동경계 및 동 명칭</b>은 지도를 확대(6레벨 이하)하면 자동으로 나타납니다.<br>
-                • <b>서울외곽 블러 ON</b> 상태에서는 서울시 경계 바깥(경기·인천)이 어둡게 처리되어 서울시 권역만 선명하게 집중할 수 있습니다.
+                • 지도에서 <b>특정 자치구 경계 안을 클릭</b>하면 해당 구의 전체 AP 대수·관리주체별 비중·설치유형별 집계가 상단에 즉시 요약됩니다.<br>
+                • 지도를 <b>5레벨 이하로 확대</b>하면 관리주체별 색상 마커를 드래그해 좌표를 보정할 수 있습니다.
             </div>
         </div>
 
@@ -820,15 +914,18 @@
     var isRoadLayerOn = false;
     var isSplitRoadviewOn = false;
 
-    // 행정경계 & 서울외곽 블러/마스킹 토글 상태
     var isGuBorderOn = true;
     var isDongBorderOn = true;
     var isOutsideMaskOn = true;
 
-    var guBoundaryPolygons = [];      // 서울시 25개 자치구 경계 폴리곤
-    var dongBoundaryPolygons = [];    // 서울시 426개 행정동 경계 폴리곤
-    var dongLabelOverlays = [];       // 행정동 명칭 라벨 (확대 시 표시)
-    var outsideMaskPolygon = null;    // 서울시 외곽 지역(경기·인천) 블러/딤 마스킹 폴리곤
+    // 자치구 폴리곤 객체 및 구별 매핑 (클릭 하이라이트 및 통계 요약용)
+    var guBoundaryItems = [];         // { guName: string, polygon: kakao.maps.Polygon }
+    var selectedGuName = null;        // 현재 클릭된 자치구명
+    var lastGuSummaryCopyText = '';
+
+    var dongBoundaryPolygons = [];
+    var dongLabelOverlays = [];
+    var outsideMaskPolygon = null;
 
     var allWifiData = [];
     var filteredWifiData = [];
@@ -858,7 +955,7 @@
 
     var MAX_VISIBLE_MARKERS = 450;
     var DETAIL_ZOOM_LEVEL = 5;
-    var DONG_VISIBLE_ZOOM_LEVEL = 6; // 6레벨 이하로 확대 시 동경계 & 동명칭 표시
+    var DONG_VISIBLE_ZOOM_LEVEL = 6;
 
     var SEOUL_GU_CENTERS = {
         "종로구": [37.573050, 126.979189], "중구": [37.563756, 126.997552], "용산구": [37.532600, 126.990000],
@@ -887,12 +984,121 @@
     }
 
     // =========================================================================
-    // 1-2. 서울시 자치구·행정동 경계 GeoJSON 로드 및 서울 외곽 블러/딤 마스킹 생성
+    // 1-2. 자치구 클릭 시 AP 현황 요약(전체 대수 · 관리주체별 비중 · 설치유형별 집계)
+    // =========================================================================
+    function highlightSelectedGuPolygon(targetGuName) {
+        selectedGuName = targetGuName;
+        guBoundaryItems.forEach(function(item) {
+            var isTarget = (targetGuName && item.guName === targetGuName);
+            item.polygon.setOptions({
+                strokeWeight: isTarget ? 3.5 : 2.2,
+                strokeColor: isTarget ? '#2563eb' : '#1e3a8a',
+                strokeOpacity: isTarget ? 0.98 : 0.78,
+                fillColor: '#3b82f6',
+                fillOpacity: isTarget ? 0.14 : 0.02
+            });
+        });
+    }
+
+    function showGuApSummaryPanel(guName, clickedLatLng) {
+        if (!guName) return;
+
+        document.getElementById('tabBtnInfo').click();
+        highlightSelectedGuPolygon(guName);
+
+        var guAllRecords = allWifiData.filter(function(d) { return d.gu === guName; });
+        var guFilteredRecords = filteredWifiData.filter(function(d) { return d.gu === guName; });
+
+        var totalCnt = guAllRecords.length;
+        var filteredCnt = guFilteredRecords.length;
+
+        document.getElementById('guSummaryTitle').innerText = '📊 ' + guName + ' AP 현황 요약';
+        document.getElementById('guSummaryTotalBadge').innerText = totalCnt.toLocaleString() + '대';
+
+        var isFilterActive = (multiFilterState.org.size > 0 || multiFilterState.type.size > 0 || document.getElementById('filterKeyword').value.trim() !== '');
+        document.getElementById('guSummarySub').innerText = isFilterActive
+            ? ('전체 ' + totalCnt.toLocaleString() + '대 중 현재 필터 일치: ' + filteredCnt.toLocaleString() + '대')
+            : ('서울시 전체 ' + allWifiData.length.toLocaleString() + '대 중 ' + (allWifiData.length > 0 ? ((totalCnt / allWifiData.length) * 100).toFixed(1) : '0.0') + '% 차지');
+
+        // 1) 관리주체별 비중 집계
+        var orgCounts = {};
+        guAllRecords.forEach(function(r) {
+            orgCounts[r.instlMby] = (orgCounts[r.instlMby] || 0) + 1;
+        });
+        var sortedOrgs = Object.keys(orgCounts).sort(function(a, b) { return orgCounts[b] - orgCounts[a]; });
+
+        var orgHtml = '';
+        var copyLines = ['[' + guName + ' 공공와이파이 AP 현황 요약 - 총 ' + totalCnt.toLocaleString() + '대]', '1. 관리주체별 비중'];
+
+        if (sortedOrgs.length === 0) {
+            orgHtml = '<div style="font-size:11px; color:#64748b;">적재된 데이터가 없습니다.</div>';
+        } else {
+            sortedOrgs.forEach(function(org) {
+                var cnt = orgCounts[org];
+                var pct = totalCnt > 0 ? ((cnt / totalCnt) * 100).toFixed(1) : '0.0';
+                var color = orgColorMap[org] || '#2563eb';
+                copyLines.push('- ' + org + ': ' + cnt.toLocaleString() + '대 (' + pct + '%)');
+
+                orgHtml += '<div class="gu-stat-row">' +
+                    '<div class="gu-stat-row-top">' +
+                    '<span style="display:flex; align-items:center; gap:5px; font-weight:600;">' +
+                    '<span class="ms-color-dot" style="background:' + color + ';"></span>' + org +
+                    '</span>' +
+                    '<span><strong>' + cnt.toLocaleString() + '대</strong> <span style="color:#64748b;">(' + pct + '%)</span></span>' +
+                    '</div>' +
+                    '<div class="gu-stat-bar-bg"><div class="gu-stat-bar-fill" style="width:' + pct + '%; background:' + color + ';"></div></div>' +
+                    '</div>';
+            });
+        }
+        document.getElementById('guSummaryOrgList').innerHTML = orgHtml;
+
+        // 2) 설치유형별 집계
+        var typeCounts = {};
+        guAllRecords.forEach(function(r) {
+            typeCounts[r.instlTy] = (typeCounts[r.instlTy] || 0) + 1;
+        });
+        var sortedTypes = Object.keys(typeCounts).sort(function(a, b) { return typeCounts[b] - typeCounts[a]; });
+
+        var typeHtml = '';
+        copyLines.push('', '2. 설치유형별 집계');
+
+        if (sortedTypes.length === 0) {
+            typeHtml = '<div style="font-size:11px; color:#64748b;">적재된 데이터가 없습니다.</div>';
+        } else {
+            sortedTypes.forEach(function(ty) {
+                var cnt = typeCounts[ty];
+                var pct = totalCnt > 0 ? ((cnt / totalCnt) * 100).toFixed(1) : '0.0';
+                copyLines.push('- ' + ty + ': ' + cnt.toLocaleString() + '대 (' + pct + '%)');
+
+                typeHtml += '<div class="gu-stat-row">' +
+                    '<div class="gu-stat-row-top">' +
+                    '<span>' + ty + '</span>' +
+                    '<span><strong>' + cnt.toLocaleString() + '대</strong> <span style="color:#64748b;">(' + pct + '%)</span></span>' +
+                    '</div>' +
+                    '<div class="gu-stat-bar-bg"><div class="gu-stat-bar-fill" style="width:' + pct + '%; background:#475569;"></div></div>' +
+                    '</div>';
+            });
+        }
+        document.getElementById('guSummaryTypeList').innerHTML = typeHtml;
+
+        lastGuSummaryCopyText = copyLines.join('\n');
+        document.getElementById('guSummaryCard').style.display = 'flex';
+
+        if (clickedLatLng) {
+            currentSelectedAp = null;
+            document.getElementById('selectedRevertBox').style.display = 'none';
+            document.getElementById('infoApName').innerText = guName + ' 경계 내 선택 지점';
+            document.getElementById('infoApMeta').innerText = guName + ' 전체 AP ' + totalCnt.toLocaleString() + '대';
+            updateLocationByCoords(clickedLatLng, guName + ' 선택 지점');
+        }
+    }
+
+    // =========================================================================
+    // 1-3. 서울시 자치구·행정동 경계 GeoJSON 로드 및 서울 외곽 블러/딤 마스킹 생성
     // =========================================================================
     async function loadSeoulAdminBoundaries() {
         var statusEl = document.getElementById('statBoundaryStatus');
 
-        // 1) 서울시 자치구 경계 (25개구) + 서울시 외곽 블러/딤 마스킹 생성
         var guUrls = [
             './seoul_municipalities.geojson',
             'https://raw.githubusercontent.com/southkorea/seoul-maps/master/kostat/2013/json/seoul_municipalities_geo_simple.json'
@@ -913,7 +1119,6 @@
             buildGuBoundariesAndOutsideMask(guGeoJson);
         }
 
-        // 2) 서울시 행정동 경계 (426개동) 로드
         var dongUrls = [
             './seoul_submunicipalities.geojson',
             'https://raw.githubusercontent.com/southkorea/seoul-maps/master/kostat/2013/json/seoul_submunicipalities_geo_simple.json'
@@ -935,10 +1140,10 @@
         }
 
         var loadedParts = [];
-        if (guBoundaryPolygons.length > 0) loadedParts.push('구경계(' + guBoundaryPolygons.length + '개)');
+        if (guBoundaryItems.length > 0) loadedParts.push('구경계(' + guBoundaryItems.length + '개)');
         if (dongBoundaryPolygons.length > 0) loadedParts.push('동경계(' + dongBoundaryPolygons.length + '개)');
         statusEl.innerText = loadedParts.length > 0
-            ? ('행정경계: ' + loadedParts.join(' · ') + ' 로드 완료')
+            ? ('행정경계: ' + loadedParts.join(' · ') + ' (구 영역 클릭 시 통계 요약)')
             : '행정경계: 외부 GeoJSON 연결 대기 중';
 
         syncAdminBoundaryVisibility();
@@ -957,12 +1162,14 @@
             var geom = feat.geometry;
             if (!geom) return;
 
+            var props = feat.properties || {};
+            var guName = (props.name || props.SIG_KOR_NM || props.adm_nm || '').trim();
+
             var polygonList = (geom.type === 'Polygon') ? [geom.coordinates] : geom.coordinates;
             polygonList.forEach(function(polyCoords) {
                 var outerRingPath = geoRingToKakaoPath(polyCoords[0]);
                 seoulHolePaths.push(outerRingPath);
 
-                // 자치구 경계 폴리곤 (내부는 투명으로 두고 클릭 방해 없도록 처리)
                 var guPoly = new kakao.maps.Polygon({
                     path: outerRingPath,
                     strokeWeight: 2.2,
@@ -973,12 +1180,30 @@
                     fillOpacity: 0.02,
                     zIndex: 2
                 });
-                guBoundaryPolygons.push(guPoly);
+
+                if (guName) {
+                    kakao.maps.event.addListener(guPoly, 'click', function(mouseEvent) {
+                        var clickPos = (mouseEvent && mouseEvent.latLng) ? mouseEvent.latLng : null;
+                        showGuApSummaryPanel(guName, clickPos);
+                    });
+
+                    kakao.maps.event.addListener(guPoly, 'mouseover', function() {
+                        if (selectedGuName !== guName) {
+                            guPoly.setOptions({ fillOpacity: 0.08 });
+                        }
+                    });
+
+                    kakao.maps.event.addListener(guPoly, 'mouseout', function() {
+                        if (selectedGuName !== guName) {
+                            guPoly.setOptions({ fillOpacity: 0.02 });
+                        }
+                    });
+                }
+
+                guBoundaryItems.push({ guName: guName, polygon: guPoly });
             });
         });
 
-        // 서울시 외곽 전체(한반도 전역 덮개)에서 서울시 25개 자치구 영역만 구멍(Hole)으로 뚫은 마스킹 폴리곤 생성
-        // 카카오맵 Polygon은 첫 번째 배열이 외곽 경계, 두 번째 이후 배열들이 내부 구멍(Hole)으로 렌더링됨
         var worldOuterRing = [
             new kakao.maps.LatLng(43.5, 123.5),
             new kakao.maps.LatLng(43.5, 132.5),
@@ -994,7 +1219,7 @@
             strokeOpacity: 0.85,
             strokeStyle: 'solid',
             fillColor: '#0f172a',
-            fillOpacity: 0.46, // 서울 외곽(경기·인천) 블러/딤 강도
+            fillOpacity: 0.46,
             zIndex: 1
         });
     }
@@ -1023,7 +1248,6 @@
                 });
                 dongBoundaryPolygons.push(dongPoly);
 
-                // 첫 번째 폴리곤의 무게중심에 행정동 명칭 라벨 생성
                 if (idx === 0 && dongName && outerRingPath.length > 0) {
                     var sumLat = 0, sumLng = 0;
                     outerRingPath.forEach(function(ll) {
@@ -1051,17 +1275,14 @@
         if (!map) return;
         var level = map.getLevel();
 
-        // 1) 서울 외곽 블러/딤 마스킹
         if (outsideMaskPolygon) {
             outsideMaskPolygon.setMap(isOutsideMaskOn ? map : null);
         }
 
-        // 2) 서울시 자치구 경계선
-        guBoundaryPolygons.forEach(function(poly) {
-            poly.setMap(isGuBorderOn ? map : null);
+        guBoundaryItems.forEach(function(item) {
+            item.polygon.setMap(isGuBorderOn ? map : null);
         });
 
-        // 3) 서울시 행정동 경계선 및 동 이름 라벨 (줌 레벨 6 이하 확대 시 표출하여 시인성 확보)
         var showDongNow = isDongBorderOn && (level <= DONG_VISIBLE_ZOOM_LEVEL);
         dongBoundaryPolygons.forEach(function(poly) {
             poly.setMap(showDongNow ? map : null);
@@ -1323,6 +1544,10 @@
 
         document.getElementById('statTotal').innerText = allWifiData.length.toLocaleString();
         applyFiltersAndRender();
+
+        if (selectedGuName) {
+            showGuApSummaryPanel(selectedGuName, null);
+        }
     }
 
     function buildMultiSelectList(categoryKey, listContainerId, items, countMap, showColorDot) {
@@ -1387,6 +1612,16 @@
         applyFiltersAndRender();
     };
 
+    function syncMultiSelectCheckboxesFromState(categoryKey) {
+        var listIdMap = { gu: 'msListGu', org: 'msListOrg', type: 'msListType' };
+        var container = document.getElementById(listIdMap[categoryKey]);
+        var targetSet = multiFilterState[categoryKey];
+        container.querySelectorAll('input[type="checkbox"]').forEach(function(cb) {
+            cb.checked = targetSet.has(cb.value);
+        });
+        updateMultiSelectButtonLabel(categoryKey);
+    }
+
     function updateMultiSelectButtonLabel(categoryKey) {
         var btnIdMap = { gu: 'msBtnGu', org: 'msBtnOrg', type: 'msBtnType' };
         var defaultTextMap = { gu: '전체 자치구', org: '전체 관리주체', type: '전체 설치유형' };
@@ -1447,6 +1682,10 @@
             }
         }
 
+        if (selectedGuName) {
+            showGuApSummaryPanel(selectedGuName, null);
+        }
+
         renderMapByZoomLevel();
 
         if (uploadedTargetPoints.length > 0 && radiusCircles.length > 0) {
@@ -1477,7 +1716,7 @@
 
         // [모드 A] 광역 줌 상태 (Level >= 6): 자치구별 수량 비례 원형 버블
         if (level > DETAIL_ZOOM_LEVEL) {
-            viewModeEl.innerHTML = '줌 레벨(' + level + '): <strong>자치구별 수량 비례 원 모드</strong> (원 클릭 또는 확대 시 개별 마커)';
+            viewModeEl.innerHTML = '줌 레벨(' + level + '): <strong>자치구별 수량 비례 원 모드</strong> (원/구영역 클릭 시 상세 요약)';
 
             var guCounts = {};
             var guCoordSums = {};
@@ -1525,12 +1764,13 @@
                 bubbleEl.className = 'gu-circle-bubble';
                 bubbleEl.style.width = diameter + 'px';
                 bubbleEl.style.height = diameter + 'px';
-                bubbleEl.title = guName + ' 공공와이파이 총 ' + count.toLocaleString() + '대 (클릭 시 확대)';
+                bubbleEl.title = guName + ' 공공와이파이 총 ' + count.toLocaleString() + '대 (클릭 시 요약 및 확대)';
                 bubbleEl.innerHTML =
                     '<span class="gu-name" style="font-size:' + nameFontSize + ';">' + guName + '</span>' +
                     '<span class="gu-cnt" style="font-size:' + cntFontSize + ';">' + count.toLocaleString() + '</span>';
 
                 bubbleEl.onclick = function() {
+                    showGuApSummaryPanel(guName, null);
                     map.setCenter(centerLatLng);
                     map.setLevel(DETAIL_ZOOM_LEVEL);
                 };
@@ -1562,7 +1802,7 @@
             }
         }
 
-        viewModeEl.innerHTML = '줌 레벨(' + level + '): <strong>개별 마커 모드</strong> (현재 화면 <strong>' + inBoundsItems.length + '</strong>개 · 관리주체별 색상 구분)';
+        viewModeEl.innerHTML = '줌 레벨(' + level + '): <strong>개별 마커 모드</strong> (현재 화면 <strong>' + inBoundsItems.length + '</strong>개 · 구 클릭 시 통계 요약)';
 
         inBoundsItems.forEach(function(apItem) {
             var pos = new kakao.maps.LatLng(apItem.lat, apItem.lng);
@@ -2258,6 +2498,28 @@
     function bindAllEvents() {
         setupMultiSelectDropdowns();
 
+        // 자치구 요약 카드 내부 버튼 이벤트
+        document.getElementById('btnCopyGuSummary').addEventListener('click', function() {
+            if (lastGuSummaryCopyText) {
+                navigator.clipboard.writeText(lastGuSummaryCopyText);
+                showToast(selectedGuName + ' AP 현황 요약이 클립보드에 복사되었습니다.');
+            }
+        });
+
+        document.getElementById('btnCloseGuSummary').addEventListener('click', function() {
+            document.getElementById('guSummaryCard').style.display = 'none';
+            highlightSelectedGuPolygon(null);
+        });
+
+        document.getElementById('btnFilterThisGuOnly').addEventListener('click', function() {
+            if (!selectedGuName) return;
+            multiFilterState.gu.clear();
+            multiFilterState.gu.add(selectedGuName);
+            syncMultiSelectCheckboxesFromState('gu');
+            applyFiltersAndRender();
+            showToast(selectedGuName + ' 단독 필터가 적용되었습니다.');
+        });
+
         // 행정경계 & 외곽 블러/딤 토글 버튼
         document.getElementById('btnToggleGuBorder').addEventListener('click', function() {
             isGuBorderOn = !isGuBorderOn;
@@ -2428,7 +2690,7 @@
         document.getElementById('btnDownloadRadiusCsv').addEventListener('click', downloadRadiusResultCsv);
         document.getElementById('btnDownloadRadiusStatsCsv').addEventListener('click', downloadRadiusStatsCsv);
 
-        document.querySelectorAll('.copy-btn').forEach(function(btn) {
+        document.querySelectorAll('.copy-btn[data-target]').forEach(function(btn) {
             btn.addEventListener('click', function() {
                 var txt = document.getElementById(btn.getAttribute('data-target')).innerText;
                 if (txt && txt !== '-') { navigator.clipboard.writeText(txt); showToast('복사됨: ' + txt); }
@@ -2477,6 +2739,7 @@
                 idleTimer = setTimeout(renderMapByZoomLevel, 150);
             });
 
+            // 서울시 경계 바깥 클릭 시 일반 좌표 조회
             kakao.maps.event.addListener(map, 'click', function(e) {
                 currentSelectedAp = null;
                 document.getElementById('selectedRevertBox').style.display = 'none';
